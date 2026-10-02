@@ -1,0 +1,1867 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P2A Course Viewer | Cloudflare</title></head><body><script src="config.js"></script><style>
+#auth-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(9,9,11,.92);backdrop-filter:blur(18px)}
+.auth-modal{width:min(420px,100%);padding:42px 36px 36px;background:#18181b;border:1px solid rgba(255,255,255,.1);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.55);text-align:center}
+.auth-modal h2{margin:0;color:#fff}.auth-modal p{color:#a1a1aa}.otp-container{display:flex;justify-content:center;gap:10px;margin:28px 0}
+.otp-input{width:54px;height:62px;border-radius:14px;background:#27272a;color:#fff;border:1px solid #3f3f46;text-align:center;font-size:24px}
+.auth-button{width:100%;padding:13px 18px;border:0;border-radius:12px;background:#6366f1;color:#fff;font-weight:700;cursor:pointer}
+.auth-error{margin:0 0 16px;padding:10px;border-radius:10px;background:rgba(239,68,68,.12);color:#fca5a5}
+</style>
+<div id="auth-overlay">
+  <div class="auth-modal">
+    <div style="font-size:28px;margin-bottom:16px">🔒</div>
+    <h2>Access Required</h2>
+    <p style="margin:9px 0 0">Enter the access code to continue.</p>
+    <div id="auth-error" class="auth-error hidden"></div>
+    <form id="auth-form">
+      <div class="otp-container">
+        <input class="otp-input" maxlength="1" inputmode="numeric" autocomplete="one-time-code">
+        <input class="otp-input" maxlength="1" inputmode="numeric">
+        <input class="otp-input" maxlength="1" inputmode="numeric">
+        <input class="otp-input" maxlength="1" inputmode="numeric">
+      </div>
+      <button class="auth-button" type="submit">Continue</button>
+    </form>
+    <div style="margin-top:18px;color:#71717a;font-size:12px">Access is verified server-side.</div>
+  </div>
+</div>
+<div id='app-shell' class='hidden'>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2A Course Viewer | Modern Dark</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS VARIABLES (Dark Theme Palette) --- */
+        :root {
+            /* Colors */
+            --bg-body: #0f172a;       /* Deep Slate */
+            --bg-card: #1e293b;       /* Lighter Slate */
+            --bg-sidebar: #111827;    /* Almost Black */
+            --bg-input: #334155;
+            
+            --primary: #6366f1;       /* Indigo 500 */
+            --primary-hover: #4f46e5; /* Indigo 600 */
+            --primary-light: #818cf8;
+            
+            --accent: #10b981;        /* Emerald 500 */
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            
+            --text-main: #f8fafc;     /* White-ish */
+            --text-muted: #94a3b8;    /* Slate 400 */
+            --text-dark: #1e293b;
+            
+            --border: #334155;
+            --border-light: rgba(255, 255, 255, 0.1);
+
+            /* Spacing & Layout */
+            --header-height: 70px;
+            --sidebar-width: 320px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            
+            /* Effects */
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.15);
+            
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        ul { list-style: none; }
+        img { max-width: 100%; display: block; }
+        button, input { font-family: inherit; border: none; }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-body); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* --- UTILITIES --- */
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- HEADER --- */
+        .app-header {
+            height: var(--header-height);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .logo i { -webkit-text-fill-color: var(--primary); font-size: 1.4rem; }
+
+        .header-actions { display: flex; gap: 1rem; align-items: center; }
+
+        .search-wrapper {
+            display: flex;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            transition: var(--transition);
+            width: 400px;
+            max-width: 100%;
+        }
+
+        .search-wrapper:focus-within {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .search-wrapper input {
+            flex: 1;
+            background: transparent;
+            color: var(--text-main);
+            padding: 8px 12px;
+            font-size: 0.95rem;
+        }
+
+        .search-wrapper button {
+            background: var(--primary);
+            color: white;
+            padding: 0 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .search-wrapper button:hover { background: var(--primary-hover); }
+
+        .menu-toggle {
+            display: none; /* Hidden on desktop */
+            background: var(--bg-card);
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid var(--border);
+        }
+
+        /* --- MAIN CONTAINER --- */
+        .main-container {
+            flex: 1;
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        /* --- ERROR MESSAGE --- */
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- COURSE CARDS (GRID) --- */
+        .course-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-light);
+        }
+
+        .card-image {
+            height: 160px;
+            background-color: var(--bg-input);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .card:hover .card-image img { transform: scale(1.05); }
+
+        .card-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
+        .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
+        .card-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; flex: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .card-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-light);
+            padding-top: 1rem;
+        }
+
+        .card-price { font-weight: 700; color: var(--primary-light); }
+        .card-features { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* --- ACTIVE COURSE LAYOUT (Sidebar + Content) --- */
+        .course-viewer {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* --- SIDEBAR (Collapsible) --- */
+        .sidebar-wrapper {
+            position: relative;
+            flex-shrink: 0;
+            width: var(--sidebar-width);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+        }
+
+        .sidebar-wrapper.collapsed { width: 0; overflow:visible; opacity: 1; }
+
+        .sidebar-toggle-btn {
+            position: absolute;
+            right: -40px;
+            top: 10px;
+            width: 32px;
+            height: 32px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 60;
+            transition: var(--transition);
+        }
+
+        .sidebar-toggle-btn:hover { color: var(--text-main); background: var(--bg-input); }
+
+        .sidebar {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            height: calc(100vh - 140px);
+            position: sticky;
+            top: calc(var(--header-height) + 20px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-light);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .sidebar-title { font-size: 1rem; font-weight: 600; color: var(--text-main); }
+        .sidebar-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+        .sidebar-content {
+            overflow-y: auto;
+            padding: 1rem;
+            flex: 1;
+        }
+
+        /* Accordion Items */
+        .accordion-section { margin-bottom: 0.5rem; }
+
+        .accordion-header {
+            background: transparent;
+            color: var(--text-muted);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+            transition: var(--transition);
+            user-select: none;
+        }
+
+        .accordion-header:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+        .accordion-header.active { background: rgba(99, 102, 241, 0.1); color: var(--primary-light); }
+        
+        .accordion-icon { font-size: 0.8rem; transition: transform 0.3s ease; }
+        .accordion-header.active .accordion-icon { transform: rotate(90deg); }
+
+        .accordion-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0, 1, 0, 1);
+            padding-left: 10px;
+        }
+
+        .accordion-body.open { max-height: 1000px; overflow:scroll; transition: max-height 0.5s ease-in-out; }
+
+        .lesson-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            margin: 2px 0;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            border-left: 2px solid transparent;
+        }
+
+        .lesson-item:hover { background: rgba(255,255,255,0.03); color: var(--text-main); }
+        .lesson-item.active {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.1), transparent);
+            color: var(--text-main);
+            border-left-color: var(--primary);
+            font-weight: 500;
+        }
+
+        .lesson-icon { font-size: 0.85rem; width: 20px; text-align: center; }
+
+        /* --- CONTENT PREVIEW AREA --- */
+        .content-area {
+            flex: 1;
+            min-width: 0; /* Prevents flex overflow */
+        }
+
+        .content-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            min-height: 500px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .content-title { font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem; }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge.video { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge.note { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        .badge.exam { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+        .badge.pdf { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
+
+        .card-subtitle-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+        }
+        
+        .buy-btn{
+            padding:8px 16px;
+            font-size:13px;
+            font-weight:600;
+            border:none;
+            border-radius:8px;
+            background:linear-gradient(135deg,#3b82f6,#2563eb);
+            color:#fff;
+            cursor:pointer;
+            transition:all .25s ease;
+            box-shadow:0 4px 10px rgba(37,99,235,0.25);
+        }
+        
+        .buy-btn:hover{
+            transform:translateY(-2px);
+            background:linear-gradient(135deg,#2563eb,#1d4ed8);
+            box-shadow:0 6px 14px rgba(37,99,235,0.35);
+        }
+        
+        .buy-btn:active{
+            transform:translateY(0);
+            box-shadow:0 3px 8px rgba(37,99,235,0.25);
+        }
+
+        .continue-btn{
+            padding:8px 16px;
+            font-size:13px;
+            font-weight:600;
+            border:none;
+            border-radius:8px;
+            background:linear-gradient(135deg,#22c55e,#16a34a);
+            color:#fff;
+            cursor:pointer;
+            transition:all .25s ease;
+            box-shadow:0 4px 10px rgba(22,163,74,0.25);
+        }
+        
+        .continue-btn:hover{
+            transform:translateY(-2px);
+            background:linear-gradient(135deg,#16a34a,#15803d);
+            box-shadow:0 6px 14px rgba(22,163,74,0.35);
+        }
+        
+        .continue-btn:active{
+            transform:translateY(0);
+            box-shadow:0 3px 8px rgba(22,163,74,0.25);
+        }
+
+        /* Media Styles */
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            background: #000;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+        }
+        .video-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .course-badge{
+            position:absolute;
+            top:10px;
+            left:10px;
+            padding:4px 10px;
+            font-size:12px;
+            font-weight:600;
+            border-radius:6px;
+            color:white;
+        }
+        
+        .badge-access{
+            background:#28a745;
+        }
+        
+        .badge-locked{
+            background:#dc3545;
+        }
+        
+        .card-image{
+            position:relative;
+        }
+
+        .pdf-wrapper {
+            width: 100%;
+            height: 80vh;
+            background: #525659;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+        .pdf-wrapper iframe { width: 100%; height: 100%; border: none; }
+
+        .note-body { font-size: 1.05rem; color: var(--text-muted); line-height: 1.8; }
+        .note-body h3, .note-body h2 { color: var(--text-main); margin: 1.5rem 0 1rem; }
+        .note-body p { margin-bottom: 1rem; }
+        .note-body img { border-radius: var(--radius-md); margin: 1rem 0; border: 1px solid var(--border); }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 0 15px rgba(99,102,241,0.4); }
+        
+        .btn-outline { border: 1px solid var(--border); color: var(--text-main); background: transparent; }
+        .btn-outline:hover { background: var(--bg-input); border-color: var(--text-muted); }
+
+        .btn-success { background: var(--accent); color: #064e3b; }
+        .btn-success:hover { filter: brightness(1.1); }
+
+        /* Exam Styles */
+        .exam-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+        .exam-item { display: flex; align-items: center; gap: 10px; color: var(--text-muted); }
+        .exam-item i { color: var(--accent); }
+
+        /* --- EMPTY STATE & LOADING --- */
+        .empty-state, .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 4rem; margin-bottom: 1.5rem; opacity: 0.2; }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 1024px) {
+            .search-wrapper { width: 250px; }
+            .sidebar-wrapper {
+                position: fixed;
+                top: var(--header-height);
+                left: 0;
+                bottom: 0;
+                width: 300px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 200;
+                margin: 0;
+                border-radius: 0;
+                height: calc(100vh - var(--header-height));
+            }
+            .sidebar-wrapper.mobile-open { transform: translateX(0); width: 300px; opacity: 1; }
+            
+            .sidebar { border: none; border-radius: 0; height: 100%; }
+            .sidebar-toggle-btn { display: none; } /* On mobile, use header toggle */
+            .menu-toggle { display: flex; }
+            
+            .course-viewer { display: block; }
+            .content-area { width: 100%; }
+            
+            /* Backdrop for mobile drawer */
+            .sidebar-backdrop {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.5);
+                backdrop-filter: blur(2px);
+                z-index: 150;
+            }
+            .sidebar-backdrop.active { display: block; }
+        }
+
+        @media (max-width: 768px) {
+            .app-header { padding: 0 1rem; }
+            .search-wrapper { display: none; } /* Hide search on very small screens or make it toggleable */
+            .search-wrapper.mobile-visible { 
+                display: flex; 
+                position: absolute; 
+                top: 70px; left: 0; right: 0; 
+                width: 100%; 
+                margin: 0; 
+                border-radius: 0; 
+                z-index: 90;
+                padding: 10px;
+                background: var(--bg-body);
+            }
+            .content-card { padding: 1rem; }
+            .content-header { flex-direction: column; }
+            .video-wrapper { margin: -1rem -1rem 1.5rem -1rem; border-radius: 0; width: calc(100% + 2rem); }
+        }
+        
+        /* Container (optional for stacking multiple toasts) */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9999;
+        }
+        
+        /* Toast Base */
+        .custom-toast {
+            min-width: 220px;
+            max-width: 320px;
+            padding: 14px 18px;
+            border-radius: 10px;
+        
+            color: #ecfdf5;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
+        
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        
+            box-shadow: 
+                0 10px 25px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        
+            backdrop-filter: blur(6px);
+        
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        
+        /* Show Animation */
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        
+        /* Exit Animation */
+        .custom-toast.hide {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        
+        /* Optional icon style (if you add icon later) */
+        .custom-toast i {
+            margin-right: 8px;
+            opacity: 0.9;
+        }
+        
+        /* Hover effect (feels interactive) */
+        .custom-toast:hover {
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 
+                0 14px 30px rgba(0, 0, 0, 0.25),
+                0 0 0 1px rgba(34, 197, 94, 0.3);
+        }
+        /* types */
+        .custom-toast.success { background: #28a745; }
+        .custom-toast.error   { background: #dc3545; }
+        .custom-toast.warning { background: #ffc107; color: #000; }
+        .custom-toast.info    { background: #007bff; }
+
+
+
+        /* =========================
+           API SETTINGS
+        ========================= */
+        
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .settings-modal.hidden {
+            display: none;
+        }
+        
+        .settings-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,.65);
+            backdrop-filter: blur(8px);
+        }
+        
+        .settings-panel {
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 30px 80px rgba(0,0,0,.5);
+            overflow: hidden;
+            animation: settingsIn .2s ease;
+        }
+        
+        @keyframes settingsIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px) scale(.97);
+            }
+        
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 22px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .settings-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        
+        .settings-header p {
+            margin-top: 5px;
+            color: var(--text-muted);
+            font-size: .85rem;
+        }
+        
+        .settings-close {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        
+        .settings-close:hover {
+            background: var(--bg-input);
+            color: var(--text-main);
+        }
+        
+        .settings-body {
+            padding: 22px;
+        }
+        
+        .settings-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: .9rem;
+            font-weight: 600;
+        }
+        
+        .settings-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 9px;
+            border: 1px solid var(--border);
+            background: var(--bg-input);
+            color: var(--text-main);
+            font-size: .95rem;
+        }
+        
+        .settings-input:focus {
+            border-color: var(--primary);
+        }
+        
+        .settings-hint {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: .75rem;
+        }
+        
+        .settings-hint code {
+            color: var(--primary-light);
+        }
+        
+        /* Cache toggle */
+        
+        .settings-toggle {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 25px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            background: rgba(255,255,255,.02);
+        }
+        
+        .settings-toggle input {
+            display: none;
+        }
+        
+        .toggle-slider {
+            flex-shrink: 0;
+            width: 42px;
+            height: 24px;
+            border-radius: 20px;
+            background: #475569;
+            position: relative;
+            transition: .2s;
+        }
+        
+        .toggle-slider::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            top: 3px;
+            left: 3px;
+            border-radius: 50%;
+            background: white;
+            transition: .2s;
+        }
+        
+        .settings-toggle input:checked + .toggle-slider {
+            background: var(--primary);
+        }
+        
+        .settings-toggle input:checked + .toggle-slider::after {
+            transform: translateX(18px);
+        }
+        
+        .toggle-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .toggle-text strong {
+            font-size: .9rem;
+        }
+        
+        .toggle-text small {
+            color: var(--text-muted);
+            font-size: .75rem;
+        }
+        
+        .settings-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 18px 22px;
+            border-top: 1px solid var(--border-light);
+        }
+    
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+
+    <header class="app-header">
+        <div class="logo">
+            <i class="fas fa-layer-group"></i>
+            <span>P2A Viewer</span>
+        </div>
+        
+        <div class="search-wrapper" id="search-container">
+            <input type="url" id="course_url" name="course_url" placeholder="Enter P2A course URL..." autocomplete="off">
+            <button type="button" id="build-course-btn">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-outline" id="settings-btn">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+
+        <div class="header-actions">
+            <button id="all-courses-btn" class="btn btn-outline hidden">
+                <i class="fas fa-arrow-left"></i> All Courses
+            </button>
+        
+            <button class="menu-toggle" id="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+
+    <!-- API Settings Modal -->
+    <div id="settings-modal" class="settings-modal hidden">
+        <div class="settings-backdrop" id="settings-backdrop"></div>
+    
+        <div class="settings-panel">
+            <div class="settings-header">
+                <div>
+                    <h2>API Settings</h2>
+                    <p>Control API authentication and cache behavior.</p>
+                </div>
+    
+                <button id="settings-close" class="settings-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+    
+            <div class="settings-body">
+    
+                <label class="settings-label">
+                    Token file
+                </label>
+                
+                <select id="tokens-file" class="settings-input" aria-label="API account"></select>
+                
+                <div class="settings-hint">
+                    Select the server-side API account to use for requests. Secrets never reach the browser.
+                </div>
+    
+    
+                <label class="settings-toggle">
+                    <input
+                        type="checkbox"
+                        id="bypass-cache"
+                    >
+    
+                    <span class="toggle-slider"></span>
+    
+                    <span class="toggle-text">
+                        <strong>Bypass cache</strong>
+                        <small>
+                            Always fetch content directly from the API.
+                        </small>
+                    </span>
+                </label>
+    
+            </div>
+    
+            <div class="settings-footer">
+                <button class="btn btn-outline" id="settings-cancel">
+                    Cancel
+                </button>
+    
+                <button class="btn btn-primary" id="settings-apply">
+                    <i class="fas fa-check"></i>
+                    Apply
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script>
+
+        const API_BASE = window.P2A_API_BASE || '';
+        async function apiFetch(path, options = {}) {
+            const res = await fetch(API_BASE + path, {
+                credentials: 'include',
+                ...options
+            });
+            if (res.status === 401) {
+                document.getElementById('auth-overlay')?.classList.remove('hidden');
+                document.getElementById('app-shell')?.classList.add('hidden');
+            }
+            const text = await res.text();
+            let data;
+            try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('Invalid server response'); }
+            if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+            return data;
+        }
+
+        async function loadApiAccounts() {
+            const select = document.getElementById('tokens-file');
+            if (!select) return;
+            try {
+                const result = await apiFetch('/api/auth/accounts');
+                select.innerHTML = (result.accounts || []).map(a =>
+                    `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`
+                ).join('');
+                if (state.account && (result.accounts || []).includes(state.account)) {
+                    select.value = state.account;
+                } else if (result.accounts?.length) {
+                    state.account = result.accounts[0];
+                    select.value = state.account;
+                }
+            } catch (e) {
+                select.innerHTML = '<option value="">Unavailable</option>';
+            }
+        }
+
+        // --- State Management ---
+        const state = {
+            currentCourse: null,
+            currentSlug: null,
+            isSidebarCollapsed: false,
+        
+            // API settings
+            account: localStorage.getItem('p2a_account') || '',
+            bypassCache: localStorage.getItem('p2a_bypass_cache') === 'true'
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            urlInput: document.getElementById('course_url'),
+            buildBtn: document.getElementById('build-course-btn'),
+            errorMsg: document.getElementById('error-message'),
+            errorText: document.getElementById('error-text'),
+            courseGrid: document.getElementById('course-cards-container'),
+            courseView: document.getElementById('course-view-container'),
+            sidebarWrapper: document.getElementById('sidebar-wrapper'),
+            sidebarToggle: document.getElementById('sidebar-toggle'),
+            mobileMenuBtn: document.getElementById('mobile-menu-btn'),
+            sidebarBackdrop: document.getElementById('sidebar-backdrop'),
+            sidebarLessons: document.getElementById('sidebar-lessons'),
+            previewContent: document.getElementById('preview-content'),
+            sidebarCourseTitle: document.getElementById('sidebar-course-title'),
+            sidebarCourseSubtitle: document.getElementById('sidebar-course-subtitle'),
+            searchContainer: document.getElementById('search-container'),
+            allCoursesBtn: document.getElementById('all-courses-btn'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsModal: document.getElementById('settings-modal'),
+            settingsBackdrop: document.getElementById('settings-backdrop'),
+            settingsClose: document.getElementById('settings-close'),
+            settingsCancel: document.getElementById('settings-cancel'),
+            settingsApply: document.getElementById('settings-apply'),
+            tokensFile: document.getElementById('tokens-file'),
+            bypassCache: document.getElementById('bypass-cache')
+        };
+
+        function openSettings() {
+            els.tokensFile.value = state.account;
+            els.bypassCache.checked = state.bypassCache;
+        
+            els.settingsModal.classList.remove('hidden');
+        }
+        
+        function closeSettings() {
+            els.settingsModal.classList.add('hidden');
+        }
+        
+        async function applySettings() {
+            const tokenFile = els.tokensFile.value.trim();
+        
+            if (!tokenFile) {
+                showToast('Token file is required', 'error');
+                return;
+            }
+        
+            if (!tokenFile) {
+                showToast('Select an API account', 'error');
+                return;
+            }
+        
+            state.account = tokenFile;
+            state.bypassCache = els.bypassCache.checked;
+            try {
+                await apiFetch('/api/auth/select-account', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({account: state.account})
+                });
+            } catch (e) {
+                showToast(e.message, 'error');
+                return;
+            }
+        
+            localStorage.setItem(
+                'p2a_account',
+                state.account
+            );
+        
+            localStorage.setItem(
+                'p2a_bypass_cache',
+                state.bypassCache
+            );
+        
+            closeSettings();
+        
+            showToast(
+                state.bypassCache
+                    ? 'Settings applied — cache bypass enabled'
+                    : 'Settings applied — cache enabled',
+                'success'
+            );
+        }
+
+
+        // --- Initialization ---
+        async function awaitBootstrap() {
+            initListeners();
+            checkUrlParams();
+            await loadApiAccounts();
+            loadAllCourses();
+        }
+        window.__p2aBootstrap = awaitBootstrap;
+
+        function initListeners() {
+            // Build Course
+            els.buildBtn.addEventListener('click', handleBuildCourse);
+            els.urlInput.addEventListener('keypress', (e) => e.key === 'Enter' && handleBuildCourse());
+
+            // Sidebar Toggles
+            els.sidebarToggle.addEventListener('click', toggleSidebar);
+            els.mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+            els.sidebarBackdrop.addEventListener('click', toggleMobileSidebar);
+            els.allCoursesBtn.addEventListener('click', goToAllCourses);
+            els.settingsBtn.addEventListener('click', openSettings);
+            els.settingsClose.addEventListener('click', closeSettings);
+            els.settingsCancel.addEventListener('click', closeSettings);
+            els.settingsBackdrop.addEventListener('click', closeSettings);
+            els.settingsApply.addEventListener('click', applySettings);
+        }
+        
+        function goToAllCourses() {
+            // remove URL param
+            const url = new URL(window.location);
+            url.searchParams.delete('course');
+            window.history.pushState({}, '', url);
+        
+            // show grid
+            els.courseGrid.classList.remove('hidden');
+        
+            // hide course viewer
+            els.courseView.classList.add('hidden');
+        
+            // hide button again
+            els.allCoursesBtn.classList.add('hidden');
+        
+            // clear state
+            state.currentCourse = null;
+        }
+
+        // --- Core Logic ---
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const slug = params.get('course');
+            if (slug) {
+                loadCourseBySlug(slug);
+            }
+        }
+
+        function handleBuildCourse(e) {
+            if (e) e.preventDefault();
+            const url = els.urlInput.value.trim();
+            if (!url) return showError('Please enter a valid course URL.');
+
+            // Extract slug
+            const slugMatch = url.match(/p2a\.academy\/courses\/([a-z0-9-]+)/);
+            if (slugMatch && slugMatch[1]) {
+                loadCourseBySlug(slugMatch[1]);
+            } else {
+                // Assume it's a slug if no full url
+                loadCourseBySlug(url);
+            }
+        }
+
+        let purchasedCourses = {};
+        
+        function loadPurchasedCourses() {
+            return apiFetch('/api/purchased-courses')
+                .then(r => r.json())
+                .then(data => {
+                    purchasedCourses = data || {};
+                })
+                .catch(err => {
+                    console.error("Purchase JSON load error:", err);
+                    purchasedCourses = {};
+                });
+        }
+
+
+        function loadAllCourses() {
+            Promise.all([
+                apiFetch('/api/courses'),
+                loadPurchasedCourses()
+            ])
+            .then(([courseData]) => {
+                renderCourseGrid(courseData.data || courseData);
+            })
+            .catch(err => {
+                console.error("Grid Error:", err);
+                els.courseGrid.innerHTML = `<div class="error-box">Failed to load courses. ${err.message}</div>`;
+            });
+        }
+
+        function renderCourseGrid(courses) {
+            if (!courses || courses.length === 0) {
+                els.courseGrid.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>No courses found.</p></div>`;
+                return;
+            }
+        
+            // sort courses so accessible ones appear first
+            courses.sort((a, b) => {
+                const accessA = purchasedCourses[a.slug] === true ? 1 : 0;
+                const accessB = purchasedCourses[b.slug] === true ? 1 : 0;
+                return accessB - accessA;
+            });
+        
+            const html = courses.map(course => {
+        
+                const price = course.price?.amount > 0 ? `৳${Number(course.price.amount).toLocaleString()}` : 'Free';
+        
+                const features = (course.bullet_points || []).slice(0, 2)
+                    .map(f => `<li><i class="fas fa-check"></i> ${escapeHtml(f)}</li>`).join('');
+        
+                const hasAccess = purchasedCourses[course.slug] === true;
+        
+                const badge = hasAccess
+                    ? `<div class="course-badge badge-access">Accessible</div>`
+                    : `<div class="course-badge badge-locked">Not Purchased</div>`;
+        
+                // const actionBtn = hasAccess
+                //     ? `<button class="continue-btn" onclick="event.stopPropagation(); loadCourseBySlug('${escapeJs(course.slug)}')">Continue Learning</button>`
+                //     : `<button class="buy-btn" onclick="event.stopPropagation(); buyCourse('${escapeJs(course.slug)}')">Buy Course</button>`;
+        
+                return `
+                <div class="card fade-in" onclick="loadCourseBySlug('${escapeJs(course.slug)}')">
+                    <div class="card-image">
+                        ${badge}
+                        ${course.image ? `<img src="${escapeHtml(course.image)}" alt="${escapeHtml(course.title)}" loading="lazy">` : ''}
+                    </div>
+        
+                    <div class="card-body">
+        
+                        <div class="card-title">${escapeHtml(course.title)}</div>
+        
+                        <div class="card-subtitle-row">
+                            <div class="card-subtitle">${escapeHtml(course.subtitle || 'No subtitle')}</div>
+                            
+                        </div>
+        
+                        <div class="card-footer">
+                            <div class="card-features">
+                                <ul>${features}</ul>
+                            </div>
+                            <div class="card-price">${price}</div>
+                        </div>
+        
+                    </div>
+                </div>`;
+            }).join('');
+        
+            els.courseGrid.innerHTML = html;
+        }
+        
+        
+        function buyCourse(slug) {
+        
+            apiFetch(`/api/purchase?slug=${encodeURIComponent(slug)}`)
+                .then(r => r.json())
+                .then(data => {
+        
+                    if (data.status === "success") {
+        
+                        showToast(`Course purchased: ${data.slug}`, "success");
+                        loadAllCourses();
+        
+                    } else if (data.status === "already_purchased") {
+        
+                        showToast(data.message, "warning");
+        
+                    } else if (data.status === "disabled") {
+        
+                        showToast(data.message, "error");
+        
+                    } else {
+        
+                        showToast(data.message || "Purchase failed", "error");
+        
+                    }
+        
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast("Network error while purchasing", "error");
+                });
+        }
+
+
+        function loadCourseBySlug(slug) {
+            showLoading();
+        
+            const startTime = performance.now();
+        
+            const url = new URL(window.location);
+            url.searchParams.set('course', slug);
+            window.history.pushState({}, '', url);
+            els.urlInput.value = `https://www.p2a.academy/courses/${slug}`;
+        
+            const params = new URLSearchParams();
+            
+            params.set('fetch', 'course');
+            params.set(
+                'course_url',
+                `https://www.p2a.academy/courses/${slug}`
+            );
+            
+            params.set('account', state.account);
+            params.set('bypass_cache', state.bypassCache ? '1' : '0');
+            
+            apiFetch(`/api/fetch?${params.toString()}`)
+            .then(r => r.json())
+            .then(res => {
+                if (res.error) throw new Error(res.error);
+        
+                renderCourseView(res.data);
+        
+                const endTime = performance.now();
+                const time = Math.round(endTime - startTime);
+        
+                showToast(`Course rendered in ${time} ms`);
+            })
+            .catch(err => {
+                console.error("Course Load Error:", err);
+                hideLoading();
+                showError(err.message);
+            });
+        }
+
+        function showLoading() {
+            els.allCoursesBtn.classList.remove('hidden');
+            // Switch Containers
+            els.courseGrid.classList.add('hidden');
+            els.courseView.classList.remove('hidden');
+            els.errorMsg.classList.add('hidden');
+
+            // ONLY replace the preview content, preserving the sidebar DOM structure
+            els.previewContent.innerHTML = `
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading course content...</p>
+                </div>`;
+            
+            // Reset Sidebar (optional visual feedback)
+            els.sidebarCourseTitle.textContent = "Loading...";
+            els.sidebarCourseSubtitle.textContent = "";
+            els.sidebarLessons.innerHTML = "";
+        }
+
+        function hideLoading() {
+            // Handled by render functions replacing content
+        }
+
+        function renderCourseView(course) {
+            // show "All Courses" button
+            els.allCoursesBtn.classList.remove('hidden');
+            state.currentCourse = course;
+            
+            // 2. Setup Sidebar Header
+            els.sidebarCourseTitle.textContent = course.title;
+            els.sidebarCourseSubtitle.textContent = course.subtitle || '';
+
+            // 3. Render Sidebar Lessons (Accordion)
+            els.sidebarLessons.innerHTML = renderSidebarTree(course.sections || []);
+            
+            // 4. Setup First Lesson logic (optional, or just show placeholder)
+            // Reset Preview
+            els.previewContent.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-play-circle"></i>
+                    <h3>Ready to Learn</h3>
+                    <p>Select a lesson from the sidebar to begin.</p>
+                    <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
+                        ${course.course_details?.cover_image ? `<img src="${escapeHtml(course.course_details.cover_image)}" style="height:150px; border-radius:8px; border:1px solid var(--border);">` : ''}
+                        ${course.image && !course.course_details?.cover_image ? `<img src="${escapeHtml(course.image)}" style="height:150px; border-radius:8px; border:1px solid var(--border);">` : ''}
+                    </div>
+                </div>`;
+
+            // Initialize Accordion Listeners
+            initAccordion();
+
+            // On mobile, close sidebar initially
+            if (window.innerWidth <= 1024) {
+                els.sidebarWrapper.classList.remove('mobile-open');
+                els.sidebarBackdrop.classList.remove('active');
+            } else {
+                // On desktop, ensure expanded
+                els.sidebarWrapper.classList.remove('collapsed');
+                state.isSidebarCollapsed = false;
+                updateSidebarIcon();
+            }
+        }
+
+        function renderSidebarTree(sections) {
+            if (!sections || !sections.length) return '<div class="empty-state"><p>No content available</p></div>';
+
+            return sections.map((section, index) => {
+                const hasChildren = (section.sections?.length || section.contents?.length);
+                // Auto-open first section
+                const isOpen = index === 0 ? 'open' : ''; 
+                const isActive = index === 0 ? 'active' : '';
+
+                let itemsHtml = '';
+                
+                // Render contents (lessons)
+                if (section.contents?.length) {
+                    itemsHtml += section.contents.map(content => `
+                        <div class="lesson-item" data-slug="${escapeHtml(content.slug || '')}" data-type="${escapeHtml(content.type || 'file')}" onclick="loadContent(this)">
+                            <i class="lesson-icon fas ${getIconClass(content.type)}"></i>
+                            <span>${escapeHtml(content.title)}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Recursive subsections
+                if (section.sections?.length) {
+                    itemsHtml += renderSidebarTree(section.sections);
+                }
+
+                return `
+                <div class="accordion-section">
+                    <div class="accordion-header ${isActive}" onclick="toggleAccordion(this)">
+                        <span>${escapeHtml(section.title)}</span>
+                        ${hasChildren ? '<i class="accordion-icon fas fa-chevron-right"></i>' : ''}
+                    </div>
+                    ${hasChildren ? `<div class="accordion-body ${isOpen}">${itemsHtml}</div>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        async function loadContent(element, retry = true) {
+        
+            document.querySelectorAll('.lesson-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+        
+            if (window.innerWidth <= 1024) {
+                toggleMobileSidebar();
+            }
+        
+            const slug = element.dataset.slug;
+            if (!slug) return;
+        
+            const startTime = performance.now();
+        
+            els.previewContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="loading-spinner"></div>
+                    <p>Loading content...</p>
+                </div>`;
+        
+            try {
+                const params = new URLSearchParams();
+                
+                params.set('fetch', 'content');
+                params.set('slug', slug);
+                
+                params.set('account', state.account);
+                params.set('bypass_cache', state.bypassCache ? '1' : '0');
+                
+                const res = await apiFetch(`/api/fetch?${params.toString()}`);
+        
+                const text = await res.text();
+                let data;
+        
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    throw new Error("Invalid server response");
+                }
+        
+                if (
+                    res.status === 403 ||
+                    data?.detail === "Authentication credentials were not provided."
+                ) {
+                    if (!retry) throw new Error("Authentication failed.");
+        
+                    const login = await fetch('login.php');
+                    const loginRes = await login.json();
+        
+                    if (loginRes.success) {
+                        return loadContent(element, false);
+                    }
+        
+                    throw new Error("Login failed");
+                }
+        
+                if (data.error) throw new Error(data.error);
+        
+                renderContentPreview(data.data);
+        
+                const endTime = performance.now();
+                const time = Math.round(endTime - startTime);
+        
+                showToast(`Content loaded in ${time} ms`);
+        
+            } catch (err) {
+                console.error("Content Error:", err);
+                els.previewContent.innerHTML =
+                    `<div class="error-box"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(err.message)}</div>`;
+            }
+        }
+        
+        
+        
+        function showToast(message, type = "success", duration = 500) {
+        
+            let container = document.querySelector('.toast-container');
+        
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+        
+            const toast = document.createElement('div');
+            toast.className = `custom-toast ${type}`;
+        
+            // safer than innerHTML
+            toast.textContent = message;
+        
+            container.appendChild(toast);
+        
+            // trigger animation
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+        
+            // auto remove
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+        
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+
+
+
+        function renderContentPreview(content) {
+            const type = content.type || 'Payment Required';
+            const date = content.created_at ? new Date(content.created_at).toLocaleDateString() : '';
+            
+            let html = `
+                <div class="content-header">
+                    <div>
+                        <div class="content-title">${escapeHtml(content.title)}</div>
+                        <div style="color:var(--text-muted); font-size:0.9rem;">
+                            <span class="badge ${type}">${type}</span>
+                            <span style="margin-left:10px;">${date}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render based on type
+            if (type === 'video' && content.video) {
+                const videoUrl = content.video.link || content.video.url || content.video;
+                const embedUrl = getYoutubeEmbed(videoUrl);
+                html += `
+                    <div class="video-wrapper">
+                        <iframe src="${embedUrl}" allowfullscreen title="Video Player"></iframe>
+                    </div>
+                    <div style="margin-top:1.5rem;">
+                        <a href="${escapeHtml(videoUrl)}" target="_blank" class="btn btn-outline">
+                            <i class="fas fa-external-link-alt"></i> Watch on YouTube
+                        </a>
+                    </div>
+                `;
+                if (content.video.description) {
+                    html += `<div class="note-body" style="margin-top:2rem;"><h4>Description</h4><p>${escapeHtml(content.video.description)}</p></div>`;
+                }
+            } 
+            else if (type === 'pdf' && content.pdf) {
+            
+                const streamUrl = content.pdf.stream_url || "";
+                const pdfSlug = streamUrl
+                    .replace(/^\/api\/content\//, "")
+                    .replace(/\/pdf-stream$/, "");
+            
+                const pdfLink = `pdf/?slug=${encodeURIComponent(pdfSlug)}`;
+            
+                html += `
+                    <div class="pdf-wrapper">
+                        <iframe src="${escapeHtml(pdfLink)}"></iframe>
+                    </div>
+                    <div style="margin-top:1rem;">
+                        <a href="${escapeHtml(pdfLink)}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Download PDF
+                        </a>
+                    </div>`;
+            }
+            else if (type === 'exam' && content.exam) {
+                const ex = content.exam;
+                html += `
+                    <div class="note-body">
+                        <p>${escapeHtml(ex.description || 'Prepare yourself for this exam.')}</p>
+                    </div>
+                    <div class="exam-meta">
+                        <div class="exam-item"><i class="fas fa-question-circle"></i> ${ex.total_marks || 'N/A'} Marks</div>
+                        <div class="exam-item"><i class="fas fa-stopwatch"></i> ${ex.duration || 'N/A'} Mins</div>
+                        <div class="exam-item"><i class="fas fa-star"></i> Pass: ${ex.passing_score || 'N/A'}</div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <a href="exam/?id=${escapeHtml(ex.id)}" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Start Exam
+                        </a>
+                        <button class="btn btn-success" id="p2aLink" data-exam-id="${escapeHtml(ex.id)}">
+                            <i class="fas fa-external-link-alt"></i> Open on P2A
+                        </button>
+                        <a href="answer/?id=${escapeHtml(ex.id)}" class="btn btn-outline">
+                            <i class="fas fa-eye"></i> See Answers
+                        </a>
+                    </div>
+                `;
+            }
+            else if (type === 'written_exam' && content.written_exam) {
+                const ex = content.written_exam;
+            
+                html += `
+                    <div class="badge badge-warning">Written Exam</div>
+            
+                    <div class="note-body">
+                        <p>${ex.description ? ex.description : 'Prepare yourself for this written exam.'}</p>
+                    </div>
+            
+                    <div class="exam-meta">
+                        <div class="exam-item">
+                            <i class="fas fa-question-circle"></i> ${ex.total_marks || 'N/A'} Marks
+                        </div>
+            
+                        <div class="exam-item">
+                            <i class="fas fa-stopwatch"></i> ${ex.duration || 'N/A'} Mins
+                        </div>
+            
+                        <div class="exam-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            ${escapeHtml(ex.start_time || 'N/A')}
+                        </div>
+                    </div>
+            
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <a href="written/?exam=${escapeHtml(ex.id)}"
+                           class="btn btn-primary">
+                            <i class="fas fa-eye"></i> View Questions
+                        </a>
+            
+                        <button class="btn btn-success"
+                                id="p2aLink_written"
+                                data-exam-id="${escapeHtml(ex.id)}">
+                            <i class="fas fa-external-link-alt"></i> Open on P2A
+                        </button>
+                    </div>
+                `;
+            }
+            else if (type === 'note' && content.note) {
+                html += `<div class="note-body">${content.note.body || content.note.content}</div>`;
+            }
+            else if (type === 'link' && content.link) {
+                const linkUrl = content.link.link || content.link.url || content.link;
+                html += `
+                    <div class="empty-state">
+                        <i class="fas fa-link" style="font-size:3rem; color:var(--primary);"></i>
+                        <h3>External Resource</h3>
+                        <p>${escapeHtml(content.link.title || 'Click below to visit the link.')}</p>
+                        <a href="${escapeHtml(linkUrl)}" target="_blank" class="btn btn-primary" style="margin-top:1rem;">
+                            Open Link
+                        </a>
+                    </div>`;
+            }
+            else {
+                html += `<div class="empty-state"><p>Subscription Required.</p></div>`;
+            }
+
+            els.previewContent.innerHTML = html;
+            els.previewContent.classList.add('fade-in');
+
+            // Attach specific listener for P2A Link if exists
+            const p2aBtn = document.getElementById('p2aLink');
+            if (p2aBtn) {
+                p2aBtn.addEventListener('click', handleP2ALink);
+            }
+            const p2aBtn_written = document.getElementById('p2aLink_written');
+            if (p2aBtn_written) {
+                p2aBtn_written.addEventListener('click', handleP2ALink_written);
+            }
+        }
+
+        function handleP2ALink(e) {
+            e.preventDefault();
+        
+            const examId = this.dataset.examId;
+            const now = new Date().toISOString();
+        
+            window.postMessage({
+                type: "SET_P2A_COOKIE",
+                examId: examId,
+                startTime: now
+            }, "*");
+        
+            window.location.href =
+              `https://p2a.academy/practice-exam/${encodeURIComponent(examId)}?mode=practice`;
+        }
+        
+        function handleP2ALink_written(e) {
+            e.preventDefault();
+        
+            const examId = this.dataset.examId;
+            const now = new Date().toISOString();
+        
+            window.postMessage({
+                type: "SET_P2A_COOKIE",
+                examId: examId,
+                startTime: now
+            }, "*");
+        
+            window.location.href =
+              `https://p2a.academy/written-live-exam/${encodeURIComponent(examId)}`;
+        }
+
+        // --- Sidebar Logic ---
+
+        function toggleAccordion(header) {
+            const body = header.nextElementSibling;
+            const icon = header.querySelector('.accordion-icon');
+            
+            // Toggle current
+            const isOpen = body.classList.contains('open');
+            
+            // Close others (Accordion behavior)
+            const parent = header.parentElement.parentElement;
+            parent.querySelectorAll('.accordion-body').forEach(b => b.classList.remove('open'));
+            parent.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('active'));
+            parent.querySelectorAll('.accordion-icon').forEach(i => i.style.transform = 'rotate(0deg)');
+
+            if (!isOpen && body) {
+                body.classList.add('open');
+                header.classList.add('active');
+                if (icon) icon.style.transform = 'rotate(90deg)';
+            }
+        }
+
+        function toggleSidebar() {
+            state.isSidebarCollapsed = !state.isSidebarCollapsed;
+            if (state.isSidebarCollapsed) {
+                els.sidebarWrapper.classList.add('collapsed');
+            } else {
+                els.sidebarWrapper.classList.remove('collapsed');
+            }
+            updateSidebarIcon();
+        }
+
+        function toggleMobileSidebar() {
+            els.sidebarWrapper.classList.toggle('mobile-open');
+            els.sidebarBackdrop.classList.toggle('active');
+        }
+
+        function updateSidebarIcon() {
+            els.sidebarToggle.innerHTML = state.isSidebarCollapsed 
+                ? '<i class="fas fa-chevron-right"></i>' 
+                : '<i class="fas fa-chevron-left"></i>';
+        }
+
+        function initAccordion() {
+            // Optional JS initialization if needed beyond CSS
+        }
+
+        function showError(msg) {
+            els.errorText.textContent = msg;
+            els.errorMsg.classList.remove('hidden');
+            setTimeout(() => els.errorMsg.classList.add('hidden'), 5000);
+        }
+
+        function getIconClass(type) {
+            const map = {
+                'video': 'play-circle',
+                'note': 'file-alt',
+                'exam': 'clipboard-check',
+                'pdf': 'file-pdf',
+                'link': 'link'
+            };
+            return map[type] || 'file';
+        }
+
+        function getYoutubeEmbed(url) {
+            if (!url) return '';
+            const regExp = /(?:youtube\.com.*v=|youtu\.be\/)([^&?#]+)/;
+            const match = url.match(regExp);
+            if (match && match[1]) {
+                return `https://www.youtube.com/embed/${match[1]}?theme=dark&rel=0&modestbranding=1`;
+            }
+            return url;
+        }
+
+        function escapeHtml(str) {
+            if (!str && str !== 0) return '';
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+        
+        function escapeJs(str) {
+            if (!str) return '';
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
+        }
+
+    </script>
+</script>
+<script>
+(function(){
+ const overlay=document.getElementById('auth-overlay'), shell=document.getElementById('app-shell'), form=document.getElementById('auth-form'), err=document.getElementById('auth-error');
+ const inputs=[...document.querySelectorAll('#auth-form .otp-input')];
+ function showApp(){overlay.classList.add('hidden');shell.classList.remove('hidden');}
+ async function check(){try{const r=await fetch((window.P2A_API_BASE||'')+'/api/auth/session',{credentials:'include'}); if(r.ok){showApp(); return true;}}catch(e){} return false;}
+ inputs.forEach((x,i)=>{x.addEventListener('input',()=>{x.value=x.value.replace(/\D/g,'').slice(0,1);if(x.value&&i<inputs.length-1)inputs[i+1].focus()});x.addEventListener('keydown',e=>{if(e.key==='Backspace'&&!x.value&&i)inputs[i-1].focus()})});
+ form.addEventListener('submit',async e=>{e.preventDefault();const pass=inputs.map(x=>x.value).join(''); if(pass.length!==4)return; try{const r=await fetch((window.P2A_API_BASE||'')+'/api/auth/login',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({passcode:pass})}); const d=await r.json(); if(!r.ok)throw new Error(d.error||'Access denied'); showApp(); await window.__p2aBootstrap?.(); location.reload();}catch(ex){err.textContent=ex.message;err.classList.remove('hidden');inputs.forEach(x=>x.value='');inputs[0].focus();}});
+ check().then(ok=>{if(ok){shell.classList.remove('hidden');window.__p2aBootstrap?.();}});
+})();
+</script></body></html>

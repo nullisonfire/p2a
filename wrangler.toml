@@ -1,0 +1,11 @@
+name = "p2a-api"
+main = "worker/src/index.js"
+compatibility_date = "2026-10-02"
+
+[[r2_buckets]]
+binding = "CACHE_BUCKET"
+bucket_name = "p2a-cache"
+
+[vars]
+# Comma-separated Pages/custom-domain origins. Set this after deployment.
+ALLOWED_ORIGINS = "https://REPLACE-WITH-YOUR-PAGES.pages.dev"
