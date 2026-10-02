@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($exam['title']); ?> - Exam</title>
-    <meta name="description" content="Interactive exam for BCS preparation">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exam</title>
+<meta name="description" content="Interactive exam for BCS preparation">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
         :root {
             --primary: #4361ee;
             --primary-dark: #3a56d4;
@@ -600,536 +600,58 @@
     </style>
 </head>
 <body>
-
-    <input type="color" id="themeColor" class="theme-color" value="#ffffff">
-    <!-- Loading overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading Exam</div>
-    </div>
-
-    <div class="container">
-        <header class="exam-header">
-            <h1><?php echo htmlspecialchars($exam['title']); ?></h1>
-            <p>Test your knowledge and skills with this interactive exam</p>
-        </header>
-        
-        <div class="exam-info">
-            <div class="info-card">
-                <h3>Duration</h3>
-                <p><?php echo htmlspecialchars($exam['duration']); ?> minutes</p>
-            </div>
-            <div class="info-card">
-                <h3>Total Marks</h3>
-                <p><?php echo htmlspecialchars($exam['total_marks']); ?></p>
-            </div>
-            <div class="info-card">
-                <h3>Positive Marks</h3>
-                <p>+<?php echo htmlspecialchars($exam['positive_marks']); ?></p>
-            </div>
-            <div class="info-card">
-                <h3>Negative Marks</h3>
-                <p>-0.5</p>
-            </div>
-        </div>
-        
-        <div class="progress-tracker">
-            <div class="progress-meta">
-                <div class="question-counter">Question <span id="current-question">1</span> of <?php echo count($questions); ?></div>
-                <div class="marks-counter">
-                    Marks: <span id="current-marks">0</span>/<?php echo $exam['total_marks']; ?>
-                </div>
-                <div class="timer">
-                    <i class="fas fa-clock"></i>
-                    <span id="timer"><?php echo htmlspecialchars($exam['duration']); ?>:00</span>
-                </div>
-            </div>
-            <div class="progress-bar" id="progress-bar"></div>
-        </div>
-        
-        <div id="questions-container">
-            <?php foreach ($questions as $index => $question): ?>
-                <div class="question-container" id="question-<?php echo $index; ?>">
-                    <div class="question-card">
-                        <div class="question-text" data-number="<?php echo $index + 1; ?>">
-                            <?php echo $question['question']; ?>
-                        </div>
-                        
-                        <?php if (!empty($question['question_image'])): ?>
-                            <img src="<?php echo $question['question_image']; ?>" class="question-image" alt="Question image">
-                        <?php endif; ?>
-                        
-                        <div class="options">
-                            <?php foreach (['a', 'b', 'c', 'd', 'e'] as $option): ?>
-                                <?php if (!empty($question[$option])): ?>
-                                    <div class="option" 
-                                         data-question="<?php echo $index; ?>" 
-                                         data-option="<?php echo $option; ?>">
-                                        <?php echo $question[$option]; ?>
-                                    </div>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    
-                    <div class="navigation-container">
-                        <div class="navigation">
-                            <?php if ($index > 0): ?>
-                                <button type="button" class="btn btn-primary prev-btn" data-question="<?php echo $index; ?>">
-                                    <i class="fas fa-arrow-left"></i> Previous
-                                </button>
-                            <?php else: ?>
-                                <div></div>
-                            <?php endif; ?>
-                            
-                            <!-- Add Skip Button -->
-                            <button type="button" class="btn btn-skip skip-btn" data-question="<?php echo $index; ?>">
-                                <i class="fas fa-forward"></i> Skip
-                            </button>
-                            
-                            <?php if ($index < count($questions) - 1): ?>
-                                <button type="button" class="btn btn-primary next-btn" data-question="<?php echo $index; ?>" disabled>
-                                    Next <i class="fas fa-arrow-right"></i>
-                                </button>
-                            <?php else: ?>
-                                <button type="button" class="btn btn-success" id="submit-exam" disabled>
-                                    <i class="fas fa-paper-plane"></i> Submit Exam
-                                </button>
-                            <?php endif; ?>
-                        </div>
-                        
-                        <div class="explanation" id="explanation-<?php echo $index; ?>">
-                            <h4><i class="fas fa-lightbulb"></i> Explanation</h4>
-                            <div class="explanation-content">
-                                <?php echo $question['explanation']; ?>
-                                <?php if (!empty($question['answer_image'])): ?>
-                                    <img src="<?php echo $question['answer_image']; ?>" class="answer-image" alt="Answer explanation image">
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-        
-        <div class="result" id="exam-result">
-            <h2>Exam Results</h2>
-            <div class="score"><span id="score">0</span><small>/<?php echo $exam['total_marks']; ?></small></div>
-            
-            <div class="stats">
-                <div class="stat-card correct">
-                    <h3 id="correct-count">0</h3>
-                    <p>Correct Answers</p>
-                </div>
-                <div class="stat-card incorrect">
-                    <h3 id="incorrect-count">0</h3>
-                    <p>Incorrect Answers</p>
-                </div>
-                <div class="stat-card unanswered">
-                    <h3 id="unanswered-count">0</h3>
-                    <p>Unanswered</p>
-                </div>
-            </div>
-            
-            <button class="btn btn-primary" id="restart-exam">
-                <i class="fas fa-redo"></i> Try Again
-            </button>
-        </div>
-    </div>
-
-
-
-
-    <!-- Floating Action Button -->
-    <button class="fab" id="fab" title="Back to top">
-        <i class="fas fa-arrow-up"></i>
-    </button>
-    <!-- Audio elements for sound feedback -->
-    <audio id="correctSound" preload="auto">
-        <source src="preview.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="incorrectSound" preload="auto">
-        <source src="invalid-selection-39351.mp3" type="audio/mpeg">
-    </audio>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Hide loading overlay
-            setTimeout(() => {
-                document.getElementById('loadingOverlay').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('loadingOverlay').style.display = 'none';
-                }, 300);
-            }, 800);
-            
-            const questions = <?php echo json_encode($questions); ?>;
-            const totalQuestions = questions.length;
-            const positiveMarks = <?php echo $exam['positive_marks']; ?>;
-            const negativeMarks = 0.5;
-            const examDuration = <?php echo $exam['duration'] * 60; ?>;
-            const maxPossibleMarks = <?php echo $exam['total_marks']; ?>;
-            
-            let currentQuestion = 0;
-            let userAnswers = Array(totalQuestions).fill(null);
-            let answeredQuestions = 0;
-            let timeLeft = examDuration;
-            let timerInterval;
-            let totalMarks = 0;
-            
-            // Initialize the first question
-            showQuestion(currentQuestion);
-            updateProgress();
-            startTimer();
-            
-            // Option click handler
-            document.querySelectorAll('.option').forEach(option => {
-                option.addEventListener('click', function() {
-                    const questionIndex = parseInt(this.dataset.question);
-                    const optionValue = this.dataset.option;
-                    
-                    if (userAnswers[questionIndex] === null) {
-                        // Remove selected class from all options in this question
-                        document.querySelectorAll(`.option[data-question="${questionIndex}"]`).forEach(opt => {
-                            opt.classList.remove('selected');
-                        });
-                        
-                        // Add selected class to clicked option
-                        this.classList.add('selected');
-                        
-                        // Store user answer
-                        userAnswers[questionIndex] = optionValue;
-                        
-                        // Check if answer is correct
-                        const isCorrect = optionValue === questions[questionIndex]['answer'];
-                        
-                        // Update marks
-                        if (isCorrect) {
-                            totalMarks += positiveMarks;
-                            playSound('correctSound');
-                        } else {
-                            totalMarks -= negativeMarks;
-                            playSound('incorrectSound');
-                        }
-
-                        
-                        // Update marks display
-                        document.getElementById('current-marks').textContent = totalMarks.toFixed(2);
-                        
-                        // Show answer feedback
-                        showAnswerFeedback(questionIndex, isCorrect);
-                        
-                        // Enable next button if not the last question
-                        if (questionIndex < totalQuestions - 1) {
-                            document.querySelector(`.next-btn[data-question="${questionIndex}"]`).disabled = false;
-                        } else {
-                            document.getElementById('submit-exam').disabled = false;
-                        }
-                        
-                        // Update answered count
-                        answeredQuestions++;
-                        updateProgress();
-                    }
-                });
-            });
-            
-            // Next button handler
-            document.querySelectorAll('.next-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const questionIndex = parseInt(this.dataset.question);
-                    currentQuestion = questionIndex + 1;
-                    showQuestion(currentQuestion);
-                });
-            });
-            
-            // Skip button handler
-            document.querySelectorAll('.skip-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const questionIndex = parseInt(this.dataset.question);
-                    
-                    // Mark as skipped (null answer)
-                    userAnswers[questionIndex] = null;
-                    
-                    // Enable next button if not the last question
-                    if (questionIndex < totalQuestions - 1) {
-                        document.querySelector(`.next-btn[data-question="${questionIndex}"]`).disabled = false;
-                    } else {
-                        document.getElementById('submit-exam').disabled = false;
-                    }
-                    
-                    // Move to next question if available
-                    if (questionIndex < totalQuestions - 1) {
-                        currentQuestion = questionIndex + 1;
-                        showQuestion(currentQuestion);
-                    }
-                });
-            });
-
-            
-            // Previous button handler
-            document.querySelectorAll('.prev-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const questionIndex = parseInt(this.dataset.question);
-                    currentQuestion = questionIndex - 1;
-                    showQuestion(currentQuestion);
-                });
-            });
-            
-            // Submit exam handler
-            document.getElementById('submit-exam').addEventListener('click', function() {
-                calculateResults();
-                stopTimer();
-            });
-            
-            // Restart exam handler
-            document.getElementById('restart-exam').addEventListener('click', function() {
-                // Reset all values
-                currentQuestion = 0;
-                userAnswers = Array(totalQuestions).fill(null);
-                answeredQuestions = 0;
-                timeLeft = examDuration;
-                totalMarks = 0;
-                
-                // Reset UI
-                document.getElementById('questions-container').style.display = 'block';
-                document.getElementById('exam-result').classList.remove('show');
-                document.getElementById('current-marks').textContent = '0';
-                
-                // Reset all questions
-                document.querySelectorAll('.question-container').forEach(container => {
-                    container.querySelectorAll('.option').forEach(option => {
-                        option.classList.remove('selected', 'correct', 'incorrect');
-                    });
-                    container.querySelector('.explanation').classList.remove('show');
-                });
-                
-                // Reset progress
-                updateProgress();
-                
-                // Show first question
-                showQuestion(currentQuestion);
-                
-                // Reset timer
-                stopTimer();
-                startTimer();
-                
-                // Scroll to top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            });
-            
-            // Theme toggle
-            const themeColorPicker = document.getElementById('themeColor');
-        
-            // Apply saved color on load
-            const savedColor = localStorage.getItem('themeColor');
-            if (savedColor) {
-                document.body.style.backgroundColor = savedColor;
-                themeColorPicker.value = savedColor;
-            }
-        
-            // Update color when user picks one
-            themeColorPicker.addEventListener('input', function() {
-                const color = themeColorPicker.value;
-                document.body.style.backgroundColor = color;
-                localStorage.setItem('themeColor', color);
-            });
-            
-
-            
-            // Back to top button
-            document.getElementById('fab').addEventListener('click', function() {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-            
-            // Show/hide FAB based on scroll position
-            window.addEventListener('scroll', function() {
-                const fab = document.getElementById('fab');
-                if (window.pageYOffset > 300) {
-                    fab.style.display = 'flex';
-                } else {
-                    fab.style.display = 'none';
-                }
-            });
-            
-            function showQuestion(index) {
-                // Hide all questions
-                document.querySelectorAll('.question-container').forEach(q => {
-                    q.classList.remove('active');
-                });
-                
-                // Show current question
-                const question = document.getElementById(`question-${index}`);
-                question.classList.add('active');
-                
-                // Update current question number
-                document.getElementById('current-question').textContent = index + 1;
-                
-                // If already answered, show the feedback
-                if (userAnswers[index] !== null) {
-                    const isCorrect = userAnswers[index] === questions[index]['answer'];
-                    showAnswerFeedback(index, isCorrect);
-                }
-                
-                // Scroll to question
-                question.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            
-            function showAnswerFeedback(questionIndex, isCorrect) {
-                const question = questions[questionIndex];
-                const options = document.querySelectorAll(`.option[data-question="${questionIndex}"]`);
-                
-                // Skip if question was skipped
-                if (userAnswers[questionIndex] === null) {
-                    document.getElementById(`explanation-${questionIndex}`).classList.add('show');
-                    return;
-                }
-                
-                // Mark correct answer
-                options.forEach(option => {
-                    if (option.dataset.option === question['answer']) {
-                        option.classList.add('correct');
-                    }
-                    
-                    // Mark incorrect if selected wrong answer
-                    if (option.dataset.option === userAnswers[questionIndex] && !isCorrect) {
-                        option.classList.add('incorrect');
-                    }
-                });
-                
-                // Show explanation
-                document.getElementById(`explanation-${questionIndex}`).classList.add('show');
-            }
-            
-            function playSound(soundId) {
-                const sound = document.getElementById(soundId);
-                sound.currentTime = 0;
-                sound.play().catch(e => console.log("Audio play failed:", e));
-            }
-            
-            function updateProgress() {
-                const progress = (answeredQuestions / totalQuestions) * 100;
-                document.getElementById('progress-bar').style.width = `${progress}%`;
-            }
-            
-            function calculateResults() {
-                let correct = 0;
-                let incorrect = 0;
-                let unanswered = 0;
-                
-                for (let i = 0; i < totalQuestions; i++) {
-                    if (userAnswers[i] === null) {
-                        // Both skipped and blank count as unanswered
-                        unanswered++;
-                    } else if (userAnswers[i] === questions[i]['answer']) {
-                        correct++;
-                    } else {
-                        incorrect++;
-                    }
-                }
-                
-                // Display results
-                document.getElementById('questions-container').style.display = 'none';
-                document.getElementById('exam-result').classList.add('show');
-                
-                // Animate score counting
-                animateValue('correct-count', 0, correct, 800);
-                animateValue('incorrect-count', 0, incorrect, 800);
-                animateValue('unanswered-count', 0, unanswered, 800);
-                animateValue('score', 0, totalMarks, 1000, 2);
-            }
-
-            
-            function animateValue(id, start, end, duration, decimals = 0) {
-                const obj = document.getElementById(id);
-                let startTimestamp = null;
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const value = progress * (end - start) + start;
-                    obj.innerHTML = decimals === 0 ? Math.floor(value) : value.toFixed(decimals);
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    }
-                };
-                window.requestAnimationFrame(step);
-            }
-            
-            function startTimer() {
-                updateTimerDisplay();
-                timerInterval = setInterval(() => {
-                    timeLeft--;
-                    updateTimerDisplay();
-                    
-                    if (timeLeft <= 0) {
-                        clearInterval(timerInterval);
-                        calculateResults();
-                    }
-                }, 1000);
-            }
-            
-            function stopTimer() {
-                clearInterval(timerInterval);
-            }
-            
-            function updateTimerDisplay() {
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                document.getElementById('timer').textContent = 
-                    `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                
-                // Change color when time is running out
-                const timerElement = document.getElementById('timer');
-                if (timeLeft <= 60) {
-                    timerElement.style.color = '#f72585';
-                } else if (timeLeft <= 300) {
-                    timerElement.style.color = '#f8961e';
-                }
-            }
-            
-            // Keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                // Space or ArrowRight to go to next question
-                if ((e.key === ' ' || e.key === 'ArrowRight') && currentQuestion < totalQuestions - 1) {
-                    const nextBtn = document.querySelector(`.next-btn[data-question="${currentQuestion}"]`);
-                    if (nextBtn && !nextBtn.disabled) {
-                        e.preventDefault();
-                        nextBtn.click();
-                    }
-                }
-                
-                // ArrowLeft to go to previous question
-                if (e.key === 'ArrowLeft' && currentQuestion > 0) {
-                    const prevBtn = document.querySelector(`.prev-btn[data-question="${currentQuestion}"]`);
-                    if (prevBtn) {
-                        e.preventDefault();
-                        prevBtn.click();
-                    }
-                }
-                
-                // 1-5 to select options
-                if (e.key >= '1' && e.key <= '5') {
-                    const optionIndex = parseInt(e.key) - 1;
-                    const options = ['a', 'b', 'c', 'd', 'e'];
-                    if (optionIndex < options.length) {
-                        const option = document.querySelector(`.option[data-question="${currentQuestion}"][data-option="${options[optionIndex]}"]`);
-                        if (option && userAnswers[currentQuestion] === null) {
-                            e.preventDefault();
-                            option.click();
-                        }
-                    }
-                }
-                
-                // Enter to submit exam
-                if (e.key === 'Enter' && currentQuestion === totalQuestions - 1) {
-                    const submitBtn = document.getElementById('submit-exam');
-                    if (submitBtn && !submitBtn.disabled) {
-                        e.preventDefault();
-                        submitBtn.click();
-                    }
-                }
-            });
-        });
-    </script>
-</body>
-</html>
+<input type="color" id="themeColor" class="theme-color" value="#ffffff">
+<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text">Loading Exam</div></div>
+<div class="container" id="app" style="visibility:hidden">
+<header class="exam-header"><h1 id="exam-title">Loading Exam</h1><p>Test your knowledge and skills with this interactive exam</p></header>
+<div class="exam-info">
+<div class="info-card"><h3>Duration</h3><p id="duration">— minutes</p></div>
+<div class="info-card"><h3>Total Marks</h3><p id="total-marks">—</p></div>
+<div class="info-card"><h3>Positive Marks</h3><p id="positive-marks">+—</p></div>
+<div class="info-card"><h3>Negative Marks</h3><p>-0.5</p></div>
+</div>
+<div class="progress-tracker"><div class="progress-meta"><div class="question-counter">Question <span id="current-question">1</span> of <span id="question-total">0</span></div><div class="marks-counter">Marks: <span id="current-marks">0</span>/<span id="max-marks">0</span></div><div class="timer"><i class="fas fa-clock"></i><span id="timer">00:00</span></div></div><div class="progress-bar" id="progress-bar"></div></div>
+<div id="questions-container"></div>
+<div class="result" id="exam-result"><h2>Exam Results</h2><div class="score"><span id="score">0</span><small>/ <span id="result-max">0</span></small></div><div class="stats"><div class="stat-card correct"><h3 id="correct-count">0</h3><p>Correct Answers</p></div><div class="stat-card incorrect"><h3 id="incorrect-count">0</h3><p>Incorrect Answers</p></div><div class="stat-card unanswered"><h3 id="unanswered-count">0</h3><p>Unanswered</p></div></div><button class="btn btn-primary" id="restart-exam"><i class="fas fa-redo"></i> Try Again</button></div>
+</div>
+<button class="fab" id="fab" title="Back to top"><i class="fas fa-arrow-up"></i></button>
+<audio id="correctSound" preload="auto"><source src="../preview.mp3" type="audio/mpeg"></audio>
+<audio id="incorrectSound" preload="auto"><source src="../invalid-selection-39351.mp3" type="audio/mpeg"></audio>
+<script src="../config.js"></script>
+<script>
+(function(){
+const API=(window.P2A_API_BASE||'').replace(/\/$/,'');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let questions=[], currentQuestion=0, userAnswers=[], answeredQuestions=0, timeLeft=0, timerInterval=null, totalMarks=0, positiveMarks=1, negativeMarks=.5, examDuration=0, maxPossibleMarks=0;
+const $=id=>document.getElementById(id);
+function qText(v){return String(v??'');}
+function render(){
+ const box=$('questions-container'); box.innerHTML=questions.map((q,i)=>`<div class="question-container" id="question-${i}"><div class="question-card"><div class="question-text" data-number="${i+1}">${qText(q.question)}</div>${q.question_image?`<img src="${esc(q.question_image)}" class="question-image" alt="Question image">`:''}<div class="options">${['a','b','c','d','e'].filter(k=>q[k]!==undefined&&q[k]!==null&&String(q[k]).trim()!=='').map(k=>`<div class="option" data-question="${i}" data-option="${k}">${esc(q[k])}</div>`).join('')}</div></div><div class="navigation-container"><div class="navigation">${i>0?`<button type="button" class="btn btn-primary prev-btn" data-question="${i}"><i class="fas fa-arrow-left"></i> Previous</button>`:'<div></div>'}<button type="button" class="btn btn-skip skip-btn" data-question="${i}"><i class="fas fa-forward"></i> Skip</button>${i<questions.length-1?`<button type="button" class="btn btn-primary next-btn" data-question="${i}" disabled>Next <i class="fas fa-arrow-right"></i></button>`:`<button type="button" class="btn btn-success" id="submit-exam" disabled><i class="fas fa-paper-plane"></i> Submit Exam</button>`}</div><div class="explanation" id="explanation-${i}"><h4><i class="fas fa-lightbulb"></i> Explanation</h4><div class="explanation-content">${qText(q.explanation||'')}${q.answer_image?`<img src="${esc(q.answer_image)}" class="answer-image" alt="Answer explanation image">`:''}</div></div></div></div>`).join('');
+ $('question-total').textContent=questions.length; $('max-marks').textContent=maxPossibleMarks; $('result-max').textContent=maxPossibleMarks;
+ bind(); showQuestion(0); updateProgress(); startTimer();
+}
+function bind(){
+ document.querySelectorAll('.option').forEach(o=>o.addEventListener('click',()=>{const i=+o.dataset.question,k=o.dataset.option;if(userAnswers[i]!==null)return;document.querySelectorAll(`.option[data-question="${i}"]`).forEach(x=>x.classList.remove('selected'));o.classList.add('selected');userAnswers[i]=k;const ok=k===String(questions[i].answer||'').trim().toLowerCase();if(ok){totalMarks+=positiveMarks;playSound('correctSound')}else{totalMarks-=negativeMarks;playSound('incorrectSound')} $('current-marks').textContent=totalMarks.toFixed(2);showAnswerFeedback(i,ok);if(i<questions.length-1)document.querySelector(`.next-btn[data-question="${i}"]`).disabled=false;else $('submit-exam').disabled=false;answeredQuestions++;updateProgress();}));
+ document.querySelectorAll('.next-btn').forEach(b=>b.addEventListener('click',()=>showQuestion(+b.dataset.question+1)));
+ document.querySelectorAll('.prev-btn').forEach(b=>b.addEventListener('click',()=>showQuestion(+b.dataset.question-1)));
+ document.querySelectorAll('.skip-btn').forEach(b=>b.addEventListener('click',()=>{const i=+b.dataset.question;if(i<questions.length-1){document.querySelector(`.next-btn[data-question="${i}"]`).disabled=false;showQuestion(i+1)}else $('submit-exam').disabled=false;}));
+ $('submit-exam')?.addEventListener('click',()=>{calculateResults();stopTimer()});
+}
+function showQuestion(i){if(i<0||i>=questions.length)return;document.querySelectorAll('.question-container').forEach(x=>x.classList.remove('active'));const q=$(`question-${i}`);q.classList.add('active');currentQuestion=i;$('current-question').textContent=i+1;if(userAnswers[i]!==null)showAnswerFeedback(i,userAnswers[i]===String(questions[i].answer||'').trim().toLowerCase());q.scrollIntoView({behavior:'smooth',block:'start'});}
+function showAnswerFeedback(i,ok){const q=questions[i], opts=document.querySelectorAll(`.option[data-question="${i}"]`);if(userAnswers[i]===null){$(`explanation-${i}`).classList.add('show');return}opts.forEach(o=>{if(o.dataset.option===String(q.answer||'').trim().toLowerCase())o.classList.add('correct');if(o.dataset.option===userAnswers[i]&&!ok)o.classList.add('incorrect')});$(`explanation-${i}`).classList.add('show');}
+function playSound(id){const s=$(id);if(s){s.currentTime=0;s.play().catch(()=>{})}}
+function updateProgress(){$('progress-bar').style.width=`${questions.length?(answeredQuestions/questions.length)*100:0}%`}
+function calculateResults(){let c=0,inc=0,u=0;questions.forEach((q,i)=>{if(userAnswers[i]===null)u++;else if(userAnswers[i]===String(q.answer||'').trim().toLowerCase())c++;else inc++});$('questions-container').style.display='none';$('exam-result').classList.add('show');animateValue('correct-count',0,c,800);animateValue('incorrect-count',0,inc,800);animateValue('unanswered-count',0,u,800);animateValue('score',0,totalMarks,1000,2)}
+function animateValue(id,start,end,duration,dec=0){const o=$(id);let st=null;const step=t=>{if(!st)st=t;const p=Math.min((t-st)/duration,1),v=p*(end-start)+start;o.textContent=dec? v.toFixed(dec):Math.floor(v);if(p<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
+function startTimer(){clearInterval(timerInterval);updateTimer();timerInterval=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0){clearInterval(timerInterval);calculateResults()}},1000)}
+function stopTimer(){clearInterval(timerInterval)}
+function updateTimer(){const m=Math.floor(timeLeft/60),s=timeLeft%60;$('timer').textContent=`${m}:${s<10?'0':''}${s}`;if(timeLeft<=60)$('timer').style.color='#f72585';else if(timeLeft<=300)$('timer').style.color='#f8961e'}
+$('restart-exam').addEventListener('click',()=>{currentQuestion=0;userAnswers=Array(questions.length).fill(null);answeredQuestions=0;timeLeft=examDuration;totalMarks=0;$('questions-container').style.display='block';$('exam-result').classList.remove('show');$('current-marks').textContent='0';document.querySelectorAll('.question-container').forEach(c=>{c.querySelectorAll('.option').forEach(o=>o.classList.remove('selected','correct','incorrect'));c.querySelector('.explanation').classList.remove('show');c.querySelectorAll('.next-btn').forEach(b=>b.disabled=true);if(c.querySelector('#submit-exam'))c.querySelector('#submit-exam').disabled=true});updateProgress();showQuestion(0);startTimer();window.scrollTo({top:0,behavior:'smooth'})});
+$('themeColor').addEventListener('input',e=>{document.body.style.backgroundColor=e.target.value;localStorage.setItem('themeColor',e.target.value)});try{const c=localStorage.getItem('themeColor');if(c){document.body.style.backgroundColor=c;$('themeColor').value=c}}catch(e){}
+$('fab').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));window.addEventListener('scroll',()=>{$('fab').style.display=window.pageYOffset>300?'flex':'none'});
+document.addEventListener('keydown',e=>{if((e.key===' '||e.key==='ArrowRight')&&currentQuestion<questions.length-1){e.preventDefault();const b=document.querySelector(`.next-btn[data-question="${currentQuestion}"]`);if(b&&!b.disabled)b.click()}if(e.key==='ArrowLeft'&&currentQuestion>0){const b=document.querySelector(`.prev-btn[data-question="${currentQuestion}"]`);if(b)b.click()}if(e.key>='1'&&e.key<='5'){const keys=['a','b','c','d','e'];const o=document.querySelector(`.option[data-question="${currentQuestion}"][data-option="${keys[+e.key-1]}"]`);if(o)o.click()}if(e.key==='Enter'){const b=$('submit-exam');if(b&&!b.disabled){e.preventDefault();b.click()}}});
+async function load(){try{const r=await fetch(`${API}/api/exam?id=${encodeURIComponent(new URLSearchParams(location.search).get('id')||'')}`,{credentials:'include'});const data=await r.json();if(!r.ok||data.error)throw new Error(data.error||`HTTP ${r.status}`);const exam=data.data?.data||data.data||data;questions=Array.isArray(exam.question)?exam.question:[];if(!questions.length)throw new Error('No questions found');positiveMarks=Number(exam.positive_marks)||1;negativeMarks=.5;examDuration=(Number(exam.duration)||0)*60;maxPossibleMarks=Number(exam.total_marks)||0;userAnswers=Array(questions.length).fill(null);$('exam-title').textContent=exam.title||'Exam';$('duration').textContent=`${exam.duration??0} minutes`;$('total-marks').textContent=exam.total_marks??0;$('positive-marks').textContent=`+${exam.positive_marks??0}`;$('app').style.visibility='visible';render();setTimeout(()=>{$('loadingOverlay').style.opacity='0';setTimeout(()=>$('loadingOverlay').style.display='none',300)},300)}catch(e){$('loadingOverlay').style.display='none';$('app').style.visibility='visible';$('questions-container').innerHTML=`<div class="question-card"><div class="question-text">Unable to load exam</div><p>${esc(e.message)}</p></div>`}}
+load();
+})();
+</script>
+</body></html>
