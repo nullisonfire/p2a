@@ -1,4 +1,314 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Written Exam</title><link rel="stylesheet" href="../app.css"></head><body><main class="shell"><div class="top"><div><h1 id="title">Written Exam</h1><div id="meta" class="muted"></div></div><a class="btn" href="../">Back</a></div><div id="body" class="card">Loading…</div></main><script src="../config.js"></script><script>
-const base=window.P2A_API_BASE||'';const id=new URLSearchParams(location.search).get('exam');function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
-fetch(base+'/api/written?exam='+encodeURIComponent(id),{credentials:'include'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'Failed');return d.data||d}).then(ex=>{document.querySelector('#title').textContent=ex.title||'Written Exam';document.querySelector('#meta').textContent=`${ex.total_marks||''} marks · ${ex.exam_duration||ex.duration||''} minutes`;const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));const levels=ex.levels||[];document.querySelector('#body').innerHTML=levels.map(level=>`<div class="level-heading"><h2>${esc(level.name)}</h2></div>${(level.groups||[]).map(group=>`${group.passage?`<div class="passage-card"><b>${esc(group.passage.header_title||'')}</b><div>${group.passage.passage_title||''}</div></div>`:''}${(group.questions||[]).map(q=>`<div class="q-card"><div class="q-header"><div class="q-body">${q.title||''}</div>${q.mark?`<span class="marks-badge">${esc(q.mark)} marks</span>`:''}</div>${q.children?`<div class="children">${q.children.map((c,i)=>`<div class="child-q"><div class="child-counter">${String.fromCharCode(97+i)}</div><div>${c.title||''}</div>${c.mark?`<span class="marks-badge">${esc(c.mark)}m</span>`:''}</div>`).join('')}</div>`:''}</div>`).join('')}`).join('')}`).join('')||'<p class="muted">No questions found.</p>'}).catch(e=>document.querySelector('#body').innerHTML='<div class="error">'+esc(e.message)+'</div>');
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Written Exam</title><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet"><style>
+  /* ── Theming (runtime-overridable via CSS vars) ── */
+  :root {
+    --bg-from: #0f0c29;
+    --bg-to:   #302b63;
+    --text-col: #ffffff;
+    --accent:   #f4a261;
+    --glass:    rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.14);
+    --glass-hover:  rgba(255,255,255,0.12);
+    --radius-lg: 20px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.35);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', 'Hind Siliguri', sans-serif;
+    background: linear-gradient(135deg, var(--bg-from) 0%, var(--bg-to) 100%);
+    background-attachment: fixed;
+    color: var(--text-col);
+    min-height: 100vh;
+    padding: 0 0 80px;
+  }
+
+  /* ── Noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ── Glass card ── */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    box-shadow: var(--shadow);
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    animation: rise .5s ease both;
+  }
+  .glass:hover { background: var(--glass-hover); transition: background .2s; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Header card ── */
+  .header-card { display: flex; flex-direction: column; gap: 18px; }
+
+  .badge-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #1a1a2e;
+  }
+
+  .exam-title {
+    font-size: clamp(22px, 4vw, 34px);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -.02em;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .meta-item {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .meta-label { font-size: 11px; opacity: .55; letter-spacing: .06em; text-transform: uppercase; }
+  .meta-value { font-size: 17px; font-weight: 600; }
+
+  /* ── Section level heading ── */
+  .level-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 36px 0 14px;
+    animation: rise .5s ease both;
+  }
+  .level-heading::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .level-heading span { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+
+  /* ── Passage card ── */
+  .passage-card {
+    background: rgba(255,255,255,0.04);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    line-height: 1.7;
+    opacity: .85;
+    animation: rise .4s ease both;
+  }
+  .passage-title { font-weight: 600; margin-bottom: 6px; opacity: 1; }
+
+  /* ── Question card ── */
+  .q-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    animation: rise .45s ease both;
+  }
+
+  .q-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+
+  .q-body { font-size: 15px; line-height: 1.75; flex: 1; }
+
+  .marks-badge {
+    flex-shrink: 0;
+    background: rgba(244,162,97,0.18);
+    border: 1px solid rgba(244,162,97,0.35);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* ── Child questions ── */
+  .children { border-top: 1px solid var(--glass-border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .child-q {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .child-counter {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 1px;
+    opacity: .6;
+  }
+
+  .child-text { flex: 1; }
+
+  /* ── FAB / Scroll to top ── */
+  .fab {
+    position: fixed;
+    right: 24px;
+    bottom: 28px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #1a1a2e;
+    border: none;
+    font-size: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 100;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,0,0,0.5); }
+  .fab:active { transform: scale(0.95); }
+
+  /* ── Color Picker Panel ── */
+  .picker-toggle {
+    position: fixed;
+    right: 24px;
+    bottom: 88px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid var(--glass-border);
+    color: var(--text-col);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    transition: background .2s;
+  }
+  .picker-toggle:hover { background: rgba(255,255,255,0.2); }
+
+  .picker-panel {
+    position: fixed;
+    right: 84px;
+    bottom: 28px;
+    background: rgba(15,12,41,0.92);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    z-index: 99;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    width: 240px;
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .picker-panel.open { display: flex; }
+
+  .picker-section { display: flex; flex-direction: column; gap: 6px; }
+  .picker-label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; opacity: .5; }
+  .picker-row { display: flex; align-items: center; gap: 10px; }
+  .picker-row input[type=color] {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 2px;
+    cursor: pointer;
+    background: transparent;
+  }
+  .picker-row span { font-size: 13px; opacity: .7; font-family: monospace; }
+
+  .picker-divider { height: 1px; background: var(--glass-border); }
+
+  .picker-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color .15s, transform .15s;
+  }
+  .preset-btn:hover { border-color: rgba(255,255,255,0.5); transform: scale(1.15); }
+
+  .reset-btn {
+    font-size: 12px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--glass-border);
+    color: var(--text-col);
+    border-radius: var(--radius-sm);
+    padding: 7px;
+    cursor: pointer;
+    text-align: center;
+    transition: background .15s;
+  }
+  .reset-btn:hover { background: rgba(255,255,255,0.14); }
+
+  img { max-width: 100%; border-radius: var(--radius-sm); }
+
+  @media (max-width: 560px) {
+    .glass { padding: 20px 18px; }
+    .q-card { padding: 16px 18px; }
+  }
+</style></head><body>
+<button class="picker-toggle" id="pickerToggle" aria-label="Customize colors">🎨</button><div class="picker-panel" id="pickerPanel"><div class="picker-section"><div class="picker-label">Text color</div><div class="picker-row"><input type="color" id="textPicker" value="#ffffff"><span id="textHex">#ffffff</span></div></div><div class="picker-divider"></div><div class="picker-section"><div class="picker-label">Background (from)</div><div class="picker-row"><input type="color" id="bgFromPicker" value="#0f0c29"><span id="bgFromHex">#0f0c29</span></div></div><div class="picker-section"><div class="picker-label">Background (to)</div><div class="picker-row"><input type="color" id="bgToPicker" value="#302b63"><span id="bgToHex">#302b63</span></div></div><div class="picker-divider"></div><div class="picker-section"><div class="picker-label">Accent color</div><div class="picker-row"><input type="color" id="accentPicker" value="#f4a261"><span id="accentHex">#f4a261</span></div></div><div class="picker-divider"></div><div class="picker-section"><div class="picker-label">Presets</div><div class="picker-presets" id="presets"></div></div><button class="reset-btn" id="resetBtn">↺ Reset to defaults</button></div>
+<div class="wrap"><div class="glass header-card"><div class="badge-row"><span class="badge">Written Exam</span><span class="badge" id="exam-type" style="background:rgba(255,255,255,0.12);color:var(--text-col);"></span></div><h1 class="exam-title" id="exam-title">Loading…</h1><div class="meta-grid"><div class="meta-item"><span class="meta-label">Duration</span><span class="meta-value" id="duration">— min</span></div><div class="meta-item"><span class="meta-label">Total marks</span><span class="meta-value" id="total-marks">—</span></div><div class="meta-item" id="type-wrap" style="display:none"><span class="meta-label">Type</span><span class="meta-value" id="type-value"></span></div></div></div><div id="levels"></div></div>
+<script src="../config.js"></script><script>
+(function(){const API=(window.P2A_API_BASE||'').replace(/\/$/,'');const root=document.documentElement;const defaults={text:'#ffffff',bgFrom:'#0f0c29',bgTo:'#302b63',accent:'#f4a261'};const presets=[{text:'#ffffff',bgFrom:'#0f0c29',bgTo:'#302b63',accent:'#f4a261'},{text:'#ffffff',bgFrom:'#1a1a2e',bgTo:'#16213e',accent:'#e94560'},{text:'#ffffff',bgFrom:'#0d1b2a',bgTo:'#1b4332',accent:'#40d9a0'},{text:'#1a1a2e',bgFrom:'#f0f4ff',bgTo:'#dce8ff',accent:'#4361ee'},{text:'#ffffff',bgFrom:'#2d1b69',bgTo:'#11023b',accent:'#c77dff'},{text:'#1a1a1a',bgFrom:'#fff3e0',bgTo:'#ffe0b2',accent:'#e65100'},{text:'#ffffff',bgFrom:'#0a192f',bgTo:'#172a45',accent:'#64ffda'},{text:'#ffffff',bgFrom:'#1c0f20',bgTo:'#3d1a4f',accent:'#ff79c6'}];
+function applyTheme(t){root.style.setProperty('--text-col',t.text);root.style.setProperty('--bg-from',t.bgFrom);root.style.setProperty('--bg-to',t.bgTo);root.style.setProperty('--accent',t.accent);['text','bgFrom','bgTo','accent'].forEach(k=>{document.getElementById(k==='text'?'textPicker':k==='bgFrom'?'bgFromPicker':k==='bgTo'?'bgToPicker':'accentPicker').value=t[k];document.getElementById(k==='text'?'textHex':k==='bgFrom'?'bgFromHex':k==='bgTo'?'bgToHex':'accentHex').textContent=t[k]});try{localStorage.setItem('examTheme',JSON.stringify(t))}catch(e){}}presets.forEach(p=>{const b=document.createElement('button');b.className='preset-btn';b.style.background=`linear-gradient(135deg,${p.bgFrom},${p.bgTo})`;b.style.outline=`2px solid ${p.accent}`;b.addEventListener('click',()=>applyTheme(p));document.getElementById('presets').appendChild(b)});[['textPicker','textHex','--text-col','text'],['bgFromPicker','bgFromHex','--bg-from','bgFrom'],['bgToPicker','bgToHex','--bg-to','bgTo'],['accentPicker','accentHex','--accent','accent']].forEach(([id,h,v,k])=>document.getElementById(id).addEventListener('input',e=>{root.style.setProperty(v,e.target.value);document.getElementById(h).textContent=e.target.value;try{const s=JSON.parse(localStorage.getItem('examTheme')||JSON.stringify(defaults));s[k]=e.target.value;localStorage.setItem('examTheme',JSON.stringify(s))}catch(e){}}));document.getElementById('resetBtn').addEventListener('click',()=>applyTheme(defaults));document.getElementById('pickerToggle').addEventListener('click',e=>{e.stopPropagation();document.getElementById('pickerPanel').classList.toggle('open')});document.addEventListener('click',e=>{const p=document.getElementById('pickerPanel');if(!p.contains(e.target))p.classList.remove('open')});try{const s=JSON.parse(localStorage.getItem('examTheme'));if(s)applyTheme(s)}catch(e){}
+async function load(){try{const id=new URLSearchParams(location.search).get('exam')||'';const r=await fetch(`${API}/api/written?exam=${encodeURIComponent(id)}`,{credentials:'include'});const data=await r.json();if(!r.ok||data.error)throw new Error(data.error||`HTTP ${r.status}`);const exam=data.data?.data||data.data||data;if(!exam||!Array.isArray(exam.levels))throw new Error('No questions found');document.title=(exam.title||'Written Exam')+' — Written Exam';document.getElementById('exam-title').textContent=exam.title||'Written Exam';document.getElementById('exam-type').textContent=exam.exam_type||'';document.getElementById('duration').textContent=`${exam.exam_duration??'—'} min`;document.getElementById('total-marks').textContent=exam.total_marks??'—';if(exam.exam_type){document.getElementById('type-wrap').style.display='flex';document.getElementById('type-value').textContent=exam.exam_type}let n=0;document.getElementById('levels').innerHTML=exam.levels.map((level,li)=>`<div class="level-heading" style="animation-delay:${li*.07}s"><span>${level.name||''}</span></div>${(level.groups||[]).map((group,gi)=>`${group.passage?`<div class="passage-card" style="animation-delay:${(li+gi)*.05}s">${group.passage.header_title?`<div class="passage-title">${group.passage.header_title}</div>`:''}${group.passage.passage_title?`<div>${group.passage.passage_title}</div>`:''}</div>`:''}${(group.questions||[]).map((q,qi)=>{n++;return`<div class="q-card" style="animation-delay:${(li+gi+qi)*.04}s"><div class="q-header"><div class="q-body">${q.title||''}</div>${q.mark?`<span class="marks-badge">${q.mark} marks</span>`:''}</div>${Array.isArray(q.children)&&q.children.length?`<div class="children">${q.children.map((c,ci)=>`<div class="child-q"><div class="child-counter">${String.fromCharCode(97+ci)}</div><div class="child-text">${c.title||''}</div>${c.mark?`<span class="marks-badge">${c.mark}m</span>`:''}</div>`).join('')}</div>`:''}</div>`}).join('')}`).join('')}`).join('');if(!n)throw new Error('No questions found');document.querySelectorAll('.q-card').forEach((c,i)=>{if(i>5){c.style.opacity='0';c.style.transform='translateY(20px)';c.style.transition='opacity .4s ease, transform .4s ease'}});const cards=document.querySelectorAll('.q-card');const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';io.unobserve(e.target)}}),{threshold:.08});cards.forEach(c=>io.observe(c))}catch(e){document.getElementById('levels').innerHTML=`<div class="q-card"><div class="q-body">Unable to load written exam</div><div>${String(e.message).replace(/</g,'&lt;')}</div></div>`}}load();})();
 </script></body></html>

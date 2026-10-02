@@ -1431,7 +1431,10 @@ body::before { content:""; position:fixed; inset:-20%; pointer-events:none; z-in
             .then(res => {
                 if (res.error) throw new Error(res.error);
         
-                renderCourseView(res.data);
+                const course = res.data?.data && typeof res.data.data === 'object'
+                    ? res.data.data
+                    : res.data;
+                renderCourseView(course);
         
                 const endTime = performance.now();
                 const time = Math.round(endTime - startTime);
@@ -1577,7 +1580,11 @@ body::before { content:""; position:fixed; inset:-20%; pointer-events:none; z-in
                 
                 const data = await apiFetch(`/api/fetch?${params.toString()}`);
                 if (data.error) throw new Error(data.error);
-                renderContentPreview(data.data);
+                const content = data.data?.data && typeof data.data.data === 'object'
+                    ? data.data.data
+                    : data.data;
+                if (!content || typeof content !== 'object') throw new Error('Invalid content response');
+                renderContentPreview(content);
         
                 const endTime = performance.now();
                 const time = Math.round(endTime - startTime);

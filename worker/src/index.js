@@ -139,15 +139,51 @@ async function decryptAES(value, secret) {
     return new TextDecoder("utf-8",{fatal:false}).decode(plain.slice(0,end)).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,"");
   } catch { return value; }
 }
+function unwrapUpstreamData(data) {
+  if (data && typeof data === "object" && !Array.isArray(data) &&
+      Object.prototype.hasOwnProperty.call(data, "data") &&
+      data.data && typeof data.data === "object") {
+    return data.data;
+  }
+  return data;
+}
+
+function normalizeExamPayload(raw) {
+  const source = unwrapUpstreamData(raw);
+  if (!source || typeof source !== "object") return source;
+
+  // The P2A exam response stores the actual MCQs at:
+  // question.body.sections[].questions[]. The original PHP flattened
+  // that collection into the public `question` array.
+  if (Array.isArray(source.question)) return source;
+
+  const nested = source.question?.body?.sections;
+  const questions = Array.isArray(nested)
+    ? nested.flatMap(section => Array.isArray(section?.questions) ? section.questions : [])
+    : [];
+
+  return { ...source, question: questions };
+}
+
 async function decryptExam(data, secret) {
-  if(!data || !Array.isArray(data.question)) return data;
-  const copy=structuredClone(data);
+  const copy=normalizeExamPayload(data);
+  if(!copy || !Array.isArray(copy.question)) return copy;
+  if(!secret) throw new Error("P2A_AES_SECRET is not configured");
   for(const q of copy.question){
     if(!q||typeof q!=="object") continue;
     if("answer" in q) q.answer=await decryptAES(q.answer,secret);
     if("explanation" in q) q.explanation=await decryptAES(q.explanation,secret);
   }
   return copy;
+}
+
+function normalizeWrittenPayload(raw) {
+  let source = unwrapUpstreamData(raw);
+  // Some cached/API responses are wrapped more than once.
+  while (source && typeof source === "object" && source.data && typeof source.data === "object" && !Array.isArray(source.levels)) {
+    source = source.data;
+  }
+  return source;
 }
 
 async function requireSession(request,env) {
@@ -212,23 +248,25 @@ export default {
             const slug=safeSlug(url.searchParams.get("course_url")?.match(/\/courses\/([A-Za-z0-9_-]+)/)?.[1] || "");
             if(!slug) response=json({error:"Invalid course URL"},400);
             else {
-              const cached=await r2Json(env,`courses/${slug}.json`);
+              const cachedRaw=await r2Json(env,`courses/${slug}.json`);
+              const cached=cachedRaw ? unwrapUpstreamData(cachedRaw) : null;
               if(cached && !bypass) response=json({data:cached,source:"cache"});
               else {
                 const u=await upstreamJSON(`https://p2a.academy/api/course/${encodeURIComponent(slug)}`,auth);
                 if(u.res.status>=400) response=json({error:`Upstream returned HTTP ${u.res.status}`},502);
-                else {await putR2Json(env,`courses/${slug}.json`,u.data); response=json({data:u.data,source:"api"});}
+                else {const data=unwrapUpstreamData(u.data); await putR2Json(env,`courses/${slug}.json`,data); response=json({data,source:"api"});}
               }
             }
           } else if(type==="content"){
             const slug=safeSlug(url.searchParams.get("slug")||"");
             if(!slug) response=json({error:"Invalid content slug"},400);
             else {
-              let data=!bypass?await r2Json(env,`contents/${slug}.json`):null;
+              const cachedRaw=!bypass?await r2Json(env,`contents/${slug}.json`):null;
+              let data=cachedRaw ? unwrapUpstreamData(cachedRaw) : null;
               if(!data){
                 const u=await upstreamJSON(`https://p2a.academy/api/content/${encodeURIComponent(slug)}`,auth);
                 if(u.res.status>=400) response=json({error:u.data?.detail||`Upstream returned HTTP ${u.res.status}`},u.res.status===403?403:502);
-                else {data=u.data; if(!accessDenied(data)&&!bypass) await putR2Json(env,`contents/${slug}.json`,data); response=json({data,source:"api"});}
+                else {data=unwrapUpstreamData(u.data); if(!accessDenied(data)&&!bypass) await putR2Json(env,`contents/${slug}.json`,data); response=json({data,source:"api"});}
               } else response=json({data,source:"cache"});
             }
           } else response=json({error:"Invalid parameters"},400);
@@ -255,25 +293,26 @@ export default {
           const id=url.searchParams.get("id");
           if(!/^\d+$/.test(id||"")) response=json({error:"Invalid exam ID provided"},400);
           else {
-            let data=await r2Json(env,`exam/${id}.json`);
-            if(!data){
+            let raw=await r2Json(env,`exam/${id}.json`);
+            if(!raw){
               const u=await upstreamJSON(`https://p2a.academy/api/exam/${id}?format=json`,auth);
               if(u.res.status!==200) response=json({error:`API returned HTTP code: ${u.res.status}`},502);
-              else {data=u.data; await putR2Json(env,`exam/${id}.json`,data);}
+              else {raw=u.data; await putR2Json(env,`exam/${id}.json`,raw);}
             }
-            response=json(await decryptExam(data,env.P2A_AES_SECRET));
+            const normalized=await decryptExam(raw,env.P2A_AES_SECRET);
+            response=json(normalized);
           }
         } else if(url.pathname==="/api/written"){
           const id=url.searchParams.get("exam");
           if(!/^\d+$/.test(id||"")) response=json({error:"Invalid exam ID"},400);
           else {
-            let data=await r2Json(env,`written/${id}.json`);
-            if(!data){
+            let raw=await r2Json(env,`written/${id}.json`);
+            if(!raw){
               const u=await upstreamJSON(`https://p2a.academy/api/practice-written-exam/${id}/`,auth);
               if(u.res.status!==200) response=json({error:`API returned HTTP code: ${u.res.status}`},502);
-              else {data=u.data; await putR2Json(env,`written/${id}.json`,data);}
+              else {raw=u.data; await putR2Json(env,`written/${id}.json`,raw);}
             }
-            response=json({data});
+            response=json(normalizeWrittenPayload(raw));
           }
         } else if(url.pathname==="/api/profile"){
           const [p,c]=await Promise.all([
