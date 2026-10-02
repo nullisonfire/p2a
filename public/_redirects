@@ -1,6 +1,6 @@
 # Explicit directory routes for Cloudflare Pages.
 # Keep these as rewrites (200) so the browser URL remains clean.
-/cache /cache/index.html 200
+/cache /cache.html 200
 /account /account/index.html 200
 /pdf /pdf/index.html 200
 /exam /exam/index.html 200

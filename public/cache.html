@@ -1,0 +1,399 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Course Cache Manager</title><style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            background:
+                radial-gradient(
+                    circle at top left,
+                    #1e293b 0,
+                    #0f172a 35%,
+                    #020617 100%
+                );
+            color: #e5e7eb;
+            padding: 30px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .header {
+            margin-bottom: 22px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 30px;
+            font-weight: 750;
+            letter-spacing: -0.8px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.28),
+                inset 0 1px rgba(255, 255, 255, 0.025);
+            backdrop-filter: blur(16px);
+        }
+
+        .form {
+            display: grid;
+            grid-template-columns: 1fr 180px 220px auto;
+            gap: 12px;
+            align-items: start;
+        }
+
+        input,
+        select,
+        button {
+            height: 48px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input,
+        select {
+            width: 100%;
+            background: #0b1220;
+            color: #e5e7eb;
+            padding: 0 14px;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #64748b;
+        }
+
+        button {
+            border: 0;
+            padding: 0 22px;
+            background: #f8fafc;
+            color: #020617;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.18s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            background: #e2e8f0;
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* -------- Autocomplete -------- */
+
+        .autocomplete-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .suggestions-box {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #0b1220;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 50;
+            display: none;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+        }
+
+        .suggestions-box.visible {
+            display: block;
+        }
+
+        .suggestion-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 13.5px;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.active {
+            background: #111827;
+            color: #f8fafc;
+        }
+
+        .suggestion-item mark {
+            background: transparent;
+            color: #fbbf24;
+            font-weight: 700;
+            padding: 0;
+        }
+
+        .suggestion-empty {
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        /* -------- End autocomplete -------- */
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 22px;
+            gap: 12px;
+        }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.45);
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #64748b;
+        }
+
+        .status.running .dot {
+            background: #f59e0b;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.55);
+        }
+
+        .status.success .dot {
+            background: #22c55e;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.55);
+        }
+
+        .status.error .dot {
+            background: #ef4444;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
+        }
+
+        .type-badge {
+            padding: 7px 11px;
+            border-radius: 8px;
+            background: #111827;
+            border: 1px solid #263244;
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .stat {
+            padding: 17px;
+            border-radius: 14px;
+            background: rgba(2, 6, 23, 0.48);
+            border: 1px solid rgba(148, 163, 184, 0.09);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 25px;
+            font-weight: 750;
+            color: #f8fafc;
+        }
+
+        .progress-wrap {
+            margin-top: 18px;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            color: #94a3b8;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .progress {
+            width: 100%;
+            height: 9px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: #111827;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: #e2e8f0;
+            transition: width 0.25s ease;
+        }
+
+        .logs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 24px;
+            margin-bottom: 10px;
+        }
+
+        .logs-header h2 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 650;
+        }
+
+        .clear-btn {
+            height: 32px;
+            padding: 0 11px;
+            border-radius: 8px;
+            font-size: 12px;
+            background: #111827;
+            color: #94a3b8;
+            border: 1px solid #263244;
+        }
+
+        .logs {
+            height: 300px;
+            overflow-y: auto;
+            border-radius: 12px;
+            background: #020617;
+            border: 1px solid #1e293b;
+            padding: 12px;
+            font-family:
+                "SFMono-Regular",
+                Consolas,
+                "Liberation Mono",
+                monospace;
+            font-size: 12px;
+        }
+
+        .log {
+            padding: 5px 3px;
+            line-height: 1.5;
+            word-break: break-word;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.035);
+        }
+
+        .log:last-child {
+            border-bottom: 0;
+        }
+
+        .log-time {
+            color: #475569;
+            margin-right: 7px;
+        }
+
+        .log-success {
+            color: #86efac;
+        }
+
+        .log-error {
+            color: #fca5a5;
+        }
+
+        .log-retry {
+            color: #fcd34d;
+        }
+
+        .log-info {
+            color: #94a3b8;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 18px;
+            color: #475569;
+            font-size: 11px;
+        }
+
+        @media (max-width: 800px) {
+            .form {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px 10px;
+            }
+
+            .card {
+                padding: 16px;
+                border-radius: 15px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .stat-value {
+                font-size: 21px;
+            }
+        }
+    </style></head><body>
+<div class="container"><div class="header"><h1>Course Cache Manager</h1><p>Download and cache course contents, PDFs, and exams.</p></div>
+<div class="card"><div class="form"><div class="autocomplete-wrapper"><input type="text" id="courseSlug" placeholder="Course slug, e.g. ntrca-course" autocomplete="off"><div class="suggestions-box" id="suggestionsBox"></div></div><select id="cacheType"><option value="content">Content — 20 threads</option><option value="pdf">PDF — 10 threads</option><option value="exam">Exam — 20 threads</option><option value="written_exam">Written Exam — 10 threads</option></select><select id="cookieAccount"><option value="">Loading selected account...</option></select><button id="startBtn">Start</button></div>
+<div class="status-row"><div class="status" id="status"><span class="dot"></span><span id="statusText">Ready</span></div><div class="type-badge" id="typeBadge">CONTENT</div></div>
+<div class="stats"><div class="stat"><div class="stat-label">Total</div><div class="stat-value" id="total">0</div></div><div class="stat"><div class="stat-label">Downloaded</div><div class="stat-value" id="downloaded">0</div></div><div class="stat"><div class="stat-label">Skipped</div><div class="stat-value" id="skipped">0</div></div><div class="stat"><div class="stat-label">Failed</div><div class="stat-value" id="failed">0</div></div></div>
+<div class="progress-wrap"><div class="progress-info"><span id="progressText">0 / 0</span><span id="percentage">0%</span></div><div class="progress"><div class="progress-bar" id="progressBar"></div></div></div><div class="logs-header"><h2>Activity Log</h2><button class="clear-btn" id="clearLogs" type="button">Clear</button></div><div class="logs" id="logs"></div></div><div class="footer">SSE connection · Concurrent downloader · Uses the account selected by the main course previewer</div></div>
+<script src="../config.js"></script><script>
+const API=(window.P2A_API_BASE||'').replace(/\/$/,''),courseInput=document.getElementById('courseSlug'),typeSelect=document.getElementById('cacheType'),accountSelect=document.getElementById('cookieAccount'),startBtn=document.getElementById('startBtn'),statusEl=document.getElementById('status'),statusText=document.getElementById('statusText'),typeBadge=document.getElementById('typeBadge'),totalEl=document.getElementById('total'),downloadedEl=document.getElementById('downloaded'),skippedEl=document.getElementById('skipped'),failedEl=document.getElementById('failed'),progressText=document.getElementById('progressText'),percentageEl=document.getElementById('percentage'),progressBar=document.getElementById('progressBar'),logsEl=document.getElementById('logs');let eventSource=null,slugs=[],currentType='content';
+function esc(v){return String(v).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;')}function log(m,c='log-info'){const d=document.createElement('div');d.className='log '+c;d.innerHTML='<span class="log-time">['+new Date().toLocaleTimeString()+']</span>'+esc(m);logsEl.appendChild(d);logsEl.scrollTop=logsEl.scrollHeight}function setStatus(t,s=''){statusText.textContent=t;statusEl.className='status';if(s)statusEl.classList.add(s)}function stats(d){for(const [k,e] of [['total',totalEl],['downloaded',downloadedEl],['skipped',skippedEl],['failed',failedEl]])if(d[k]!==undefined)e.textContent=d[k];const total=+totalEl.textContent||0,done=(+downloadedEl.textContent||0)+(+skippedEl.textContent||0)+(+failedEl.textContent||0),p=total?Math.min(100,done/total*100):0;progressBar.style.width=p.toFixed(1)+'%';progressText.textContent=done+' / '+total;percentageEl.textContent=p.toFixed(1)+'%'}function updateType(){currentType=typeSelect.value;typeBadge.textContent=currentType.toUpperCase()}typeSelect.addEventListener('change',updateType);
+function renderSuggestions(q=''){const box=document.getElementById('suggestionsBox'),x=q.trim().toLowerCase(),m=(x?slugs.filter(s=>s.toLowerCase().includes(x)):slugs).slice(0,50);if(!m.length){box.classList.remove('visible');box.innerHTML='';return}box.innerHTML=m.map(s=>'<div class="suggestion-item" data-value="'+esc(s)+'">'+esc(s)+'</div>').join('');box.classList.add('visible');box.querySelectorAll('.suggestion-item').forEach(i=>i.onclick=()=>{courseInput.value=i.dataset.value;box.classList.remove('visible')})}courseInput.addEventListener('input',()=>renderSuggestions(courseInput.value));courseInput.addEventListener('focus',()=>renderSuggestions(courseInput.value));document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrapper'))document.getElementById('suggestionsBox').classList.remove('visible')});
+async function api(path,opts={}){const r=await fetch(API+path,{...opts,credentials:'include',headers:{'Content-Type':'application/json',...(opts.headers||{})}}),d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d}async function init(){try{const s=await api('/api/auth/session'),a=await api('/api/auth/accounts');accountSelect.innerHTML='';for(const name of a.accounts||[]){const o=document.createElement('option');o.value=name;o.textContent=name;if(name===s.account)o.selected=true;accountSelect.appendChild(o)}if(!accountSelect.options.length)throw new Error('No API accounts configured');const c=await api('/api/cache/slugs');slugs=Array.isArray(c.slugs)?c.slugs:[];log('Selected account: '+(s.account||'unknown'))}catch(e){setStatus('Authentication required','error');log(e.message,'log-error');startBtn.disabled=true}}accountSelect.addEventListener('change',async()=>{try{await api('/api/auth/select-account',{method:'POST',body:JSON.stringify({account:accountSelect.value})});log('Selected account changed to '+accountSelect.value,'log-success')}catch(e){log(e.message,'log-error')}});
+startBtn.onclick=startDownload;function startDownload(){const slug=courseInput.value.trim(),type=typeSelect.value;if(!slug)return log('Please enter a course slug.','log-error');if(!accountSelect.value)return log('No API account selected.','log-error');if(eventSource)eventSource.close();totalEl.textContent=downloadedEl.textContent=skippedEl.textContent=failedEl.textContent='0';progressBar.style.width='0%';progressText.textContent='0 / 0';percentageEl.textContent='0%';logsEl.innerHTML='';updateType();setStatus('Connecting...','running');startBtn.disabled=courseInput.disabled=typeSelect.disabled=accountSelect.disabled=true;log('Starting '+type+' cache for "'+slug+'" using account '+accountSelect.value+'...');eventSource=new EventSource(API+'/api/cache/sse?slug='+encodeURIComponent(slug)+'&type='+encodeURIComponent(type),{withCredentials:true});eventSource.onmessage=e=>{let d;try{d=JSON.parse(e.data)}catch{return log('Received invalid SSE data.','log-error')}handle(d)};eventSource.onerror=()=>{if(eventSource&&eventSource.readyState===EventSource.CLOSED){setStatus('Connection closed','error');log('SSE connection closed.','log-error');finish()}}}
+function handle(d){const ev=d.event||'';if(ev==='start'){stats(d);setStatus('Running','running');log((d.type||currentType)+' started — '+(d.total??0)+' items, '+(d.threads??'?')+' threads.')}else if(ev==='status'){setStatus(d.message||'Working...','running');log(d.message||'Working...')}else if(ev==='retry')log((d.type||currentType)+(d.id?' #'+d.id:'')+' retry attempt '+(d.attempt||'?'),'log-retry');else if(ev==='progress'){stats(d);const name=d.title||d.slug||(d.id!==undefined?'Exam #'+d.id:'Item'),st=d.status||'updated';if(st==='downloaded')log((d.type||currentType)+': '+name+' — downloaded','log-success');else if(st==='skipped')log((d.type||currentType)+': '+name+' — already cached');else if(st==='missing_content')log((d.type||currentType)+': '+name+' — content JSON missing','log-error');else if(st==='failed')log((d.type||currentType)+': '+name+' — FAILED','log-error');else log((d.type||currentType)+': '+name+' — '+st)}else if(ev==='complete'){stats(d);setStatus('Completed','success');log((d.type||currentType)+' completed — Downloaded: '+(d.downloaded??0)+', Skipped: '+(d.skipped??0)+', Failed: '+(d.failed??0)+'.','log-success');if(eventSource)eventSource.close();eventSource=null;finish()}else if(ev==='error'){setStatus('Error','error');log(d.message||'Unknown server error.','log-error');if(eventSource)eventSource.close();eventSource=null;finish()}}function finish(){startBtn.disabled=courseInput.disabled=typeSelect.disabled=accountSelect.disabled=false}document.getElementById('clearLogs').onclick=()=>logsEl.innerHTML='';updateType();init();</script></body></html>
