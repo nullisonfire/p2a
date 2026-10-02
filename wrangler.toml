@@ -8,4 +8,4 @@ bucket_name = "p2a-cache"
 
 [vars]
 # Comma-separated Pages/custom-domain origins. Set this after deployment.
-ALLOWED_ORIGINS = "https://p2a.pages.dev"
+ALLOWED_ORIGINS = "https://REPLACE-WITH-YOUR-PAGES.pages.dev"
