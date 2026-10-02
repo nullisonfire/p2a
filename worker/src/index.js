@@ -81,18 +81,19 @@ function safeSlug(v) {
 }
 function getAccount(request, env, session) {
   const accounts=parseAccounts(env);
-  const account=session?.account || Object.keys(accounts)[0];
+  const requested = new URL(request.url).searchParams.get("account");
+  const account = requested || session?.account || Object.keys(accounts)[0];
   return account && accounts[account] ? accounts[account] : null;
 }
 function upstreamHeaders(auth, extra={}) {
   return {
-    "Accept":"application/json",
+    "Accept":"*/*",
     "Authorization":auth.authorization,
-    "X-CSRF-TOKEN":auth.csrf,
     "X-App-Key":auth.x_app_key,
-    "X-Secret":auth.x_secret,
-    "Cookie":`csrftoken=${auth.csrf}; token=${auth.token}`,
-    "User-Agent":"P2A-Cloudflare-Worker/1.0",
+    "X-Secret-Token":auth.x_secret,
+    "Referer":"https://p2a.academy/",
+    "User-Agent":"Mozilla/5.0",
+    "Cookie":`csrftoken=${auth.csrf};token=${auth.token}`,
     ...extra
   };
 }
@@ -192,6 +193,102 @@ async function requireSession(request,env) {
   return s;
 }
 
+
+
+function collectNodesByType(value, wanted, out=[]) {
+  if (!value || typeof value !== "object") return out;
+  if (!Array.isArray(value) && String(value.type || "").toLowerCase() === wanted && value.slug) {
+    out.push({ slug: String(value.slug).split("/").pop(), title: value.title || value.slug });
+  }
+  if (Array.isArray(value)) for (const v of value) collectNodesByType(v, wanted, out);
+  else for (const v of Object.values(value)) collectNodesByType(v, wanted, out);
+  return out;
+}
+function collectContentSlugs(value, out=[]) {
+  if (!value || typeof value !== "object") return out;
+  if (Array.isArray(value)) { for (const v of value) collectContentSlugs(v,out); return out; }
+  if (Array.isArray(value.contents)) {
+    for (const c of value.contents) if (c && c.slug) out.push(String(c.slug).split("/").pop());
+  }
+  for (const v of Object.values(value)) collectContentSlugs(v,out);
+  return out;
+}
+function uniqueItems(items) {
+  const m=new Map(); for(const x of items) if(x?.slug) m.set(x.slug,x); return [...m.values()];
+}
+async function streamCacheEvents(request, env, auth, slug, type) {
+  const encoder=new TextEncoder();
+  const stream=new ReadableStream({
+    async start(controller) {
+      const send=(event,payload={})=>controller.enqueue(encoder.encode(`data: ${JSON.stringify({event,...payload})}\n\n`));
+      try {
+        send("status",{message:`Fetching course for ${type}...`});
+        const courseRes=await upstreamJSON(`https://p2a.academy/api/course/${encodeURIComponent(slug)}`,auth);
+        if(!courseRes.res.ok){ send("error",{message:`Failed to fetch course. Upstream HTTP ${courseRes.res.status}`}); controller.close(); return; }
+        const course=courseRes.data;
+        await putR2Json(env,`courses/${slug}.json`,course);
+        const source=unwrapUpstreamData(course);
+        let items=[];
+        if(type==="content") items=collectContentSlugs(source).map(slug=>({slug,title:slug}));
+        if(type==="pdf") items=uniqueItems(collectNodesByType(source,"pdf"));
+        if(type==="exam") items=uniqueItems(collectNodesByType(source,"exam"));
+        if(type==="written_exam") items=uniqueItems(collectNodesByType(source,"written_exam"));
+
+        if(type==="exam" || type==="written_exam") {
+          const resolved=[];
+          for(const item of items){
+            const cached=await r2Json(env,`contents/${item.slug}.json`);
+            const c=unwrapUpstreamData(cached||{});
+            const id=type==="exam" ? c?.exam?.id : c?.written_exam?.id;
+            if(id) resolved.push({id:Number(id),slug:item.slug,title:item.title});
+            else send("progress",{type,slug:item.slug,title:item.title,status:"missing_content"});
+          }
+          const dedupe=new Map(); for(const x of resolved) dedupe.set(x.id,x); items=[...dedupe.values()];
+        }
+
+        const threads=type==="pdf"||type==="written_exam"?10:20;
+        let downloaded=0, skipped=0, failed=0;
+        const total=items.length;
+        send("start",{type,total,threads});
+        const batches=[];
+        for(let i=0;i<items.length;i+=threads) batches.push(items.slice(i,i+threads));
+        for(const batch of batches){
+          await Promise.all(batch.map(async item=>{
+            const key= type==="content"?`contents/${item.slug}.json`: type==="pdf"?`pdf/${item.slug}.pdf`:type==="exam"?`exam/${item.id}.json`:`written/${item.id}.json`;
+            const existing=await env.CACHE_BUCKET.head(key);
+            if(existing){ skipped++; send("progress",{type,...(item.id?{id:item.id}:{}),slug:item.slug,title:item.title,status:"skipped",downloaded,skipped,failed,total}); return; }
+            let ok=false,lastStatus=0;
+            for(let attempt=0;attempt<4;attempt++){
+              if(attempt) send("retry",{type,...(item.id?{id:item.id}:{}),slug:item.slug,attempt});
+              try{
+                const endpoint= type==="content"?`https://p2a.academy/api/content/${encodeURIComponent(item.slug)}`:type==="pdf"?`https://p2a.academy/api/pdf-proxy?content=${encodeURIComponent(item.slug)}`:type==="exam"?`https://p2a.academy/api/exam/${encodeURIComponent(String(item.id))}`:`https://p2a.academy/api/practice-written-exam/${encodeURIComponent(String(item.id))}`;
+                const headers= type==="pdf" ? {
+                  "Accept":"application/pdf,*/*","Authorization":auth.authorization,"X-App-Key":auth.x_app_key,"X-Secret-Token":auth.x_secret,
+                  "Referer":`https://p2a.academy/dashboard/my-courses/${slug}/?content=${encodeURIComponent(item.slug)}&contentType=pdf`,"Cookie":`token=${auth.token};csrftoken=${auth.csrf}`,"User-Agent":"Mozilla/5.0"
+                } : undefined;
+                if(type==="pdf") {
+                  const pdfRes=await fetch(endpoint,{headers:headers,redirect:"follow"}); lastStatus=pdfRes.status;
+                  if(pdfRes.ok){ const buf=await pdfRes.arrayBuffer(); const ct=pdfRes.headers.get("content-type")||""; if(buf.byteLength && /pdf/i.test(ct)){ await env.CACHE_BUCKET.put(key,buf,{httpMetadata:{contentType:"application/pdf",cacheControl:"private, max-age=300"}}); ok=true; } }
+                } else {
+                  const u=await upstreamJSON(endpoint,auth); lastStatus=u.res.status;
+                  if(u.res.ok && u.data && typeof u.data==="object"){ await putR2Json(env,key,u.data); ok=true; }
+                }
+              }catch{}
+              if(ok) break;
+              if(attempt<3) await new Promise(r=>setTimeout(r,(attempt+1)*1000));
+            }
+            if(ok){ downloaded++; send("progress",{type,...(item.id?{id:item.id}:{}),slug:item.slug,title:item.title,status:"downloaded",downloaded,skipped,failed,total}); }
+            else { failed++; send("progress",{type,...(item.id?{id:item.id}:{}),slug:item.slug,title:item.title,status:"failed",http_code:lastStatus,downloaded,skipped,failed,total}); }
+          }));
+        }
+        send("complete",{type,total,downloaded,skipped,failed});
+      } catch(e) { send("error",{message:e?.message||"Cache operation failed"}); }
+      finally { controller.close(); }
+    }
+  });
+  return new Response(stream,{status:200,headers:{"content-type":"text/event-stream; charset=utf-8","cache-control":"no-cache, no-transform","connection":"keep-alive","x-accel-buffering":"no"}});
+}
+
 export default {
   async fetch(request, env) {
     if(request.method==="OPTIONS"){
@@ -241,6 +338,15 @@ export default {
         } else if(url.pathname==="/api/purchased-courses"){
           const data=await r2Json(env,"state/purchased_course.json") || {};
           response=json(data);
+        } else if(url.pathname==="/api/cache/slugs"){
+          const listed=await env.CACHE_BUCKET.list({prefix:"courses/",limit:1000});
+          response=json({slugs:listed.objects.map(o=>o.key.slice("courses/".length).replace(/\.json$/,"" )).filter(Boolean).sort((a,b)=>a.localeCompare(b))});
+        } else if(url.pathname==="/api/cache/sse"){
+          const slug=safeSlug(url.searchParams.get("slug")||"");
+          const type=String(url.searchParams.get("type")||"content").toLowerCase();
+          if(!slug) response=json({error:"Missing or invalid course slug"},400);
+          else if(!["content","pdf","exam","written_exam"].includes(type)) response=json({error:"Invalid type"},400);
+          else response=await streamCacheEvents(request,env,auth,slug,type);
         } else if(url.pathname==="/api/fetch"){
           const type=url.searchParams.get("fetch");
           const bypass=url.searchParams.get("bypass_cache")==="1";
