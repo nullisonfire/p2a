@@ -81,18 +81,19 @@ function safeSlug(v) {
 }
 function getAccount(request, env, session) {
   const accounts=parseAccounts(env);
-  const account=session?.account || Object.keys(accounts)[0];
+  const requested = new URL(request.url).searchParams.get("account");
+  const account = requested || session?.account || Object.keys(accounts)[0];
   return account && accounts[account] ? accounts[account] : null;
 }
 function upstreamHeaders(auth, extra={}) {
   return {
-    "Accept":"application/json",
+    "Accept":"*/*",
     "Authorization":auth.authorization,
-    "X-CSRF-TOKEN":auth.csrf,
     "X-App-Key":auth.x_app_key,
-    "X-Secret":auth.x_secret,
-    "Cookie":`csrftoken=${auth.csrf}; token=${auth.token}`,
-    "User-Agent":"P2A-Cloudflare-Worker/1.0",
+    "X-Secret-Token":auth.x_secret,
+    "Referer":"https://p2a.academy/",
+    "User-Agent":"Mozilla/5.0",
+    "Cookie":`csrftoken=${auth.csrf};token=${auth.token}`,
     ...extra
   };
 }
