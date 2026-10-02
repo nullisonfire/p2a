@@ -1,4 +1,27 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P2A Course Viewer | Cloudflare</title></head><body><script src="config.js"></script><style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P2A Course Viewer | Cloudflare</title>
+<style id="p2a-motion">
+:root { --ease-spring: cubic-bezier(.22,1,.36,1); }
+body::before { content:""; position:fixed; inset:-20%; pointer-events:none; z-index:-1; background:radial-gradient(circle at 15% 10%, rgba(99,102,241,.10), transparent 30%), radial-gradient(circle at 85% 20%, rgba(16,185,129,.06), transparent 28%); animation:p2aAmbient 14s ease-in-out infinite alternate; }
+@keyframes p2aAmbient { from{transform:translate3d(-1%,0,0) scale(1)} to{transform:translate3d(1%,1%,0) scale(1.04)} }
+.card { animation:cardIn .55s var(--ease-spring) both; }
+.card:nth-child(2n){animation-delay:.04s}.card:nth-child(3n){animation-delay:.08s}.card:nth-child(4n){animation-delay:.12s}
+@keyframes cardIn { from{opacity:0;transform:translateY(18px) scale(.98)} to{opacity:1;transform:none} }
+.card:active { transform:translateY(-2px) scale(.995); }
+.btn, .auth-button, .menu-toggle, .sidebar-toggle-btn { transition:transform .2s var(--ease-spring), box-shadow .25s ease, background .25s ease, border-color .25s ease; }
+.btn:hover, .auth-button:hover { transform:translateY(-2px); }
+.btn:active, .auth-button:active { transform:translateY(0) scale(.98); }
+.lesson-item { animation:lessonIn .35s var(--ease-spring) both; }
+@keyframes lessonIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+.content-card { animation:contentIn .45s var(--ease-spring); }
+@keyframes contentIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+.loading-spinner { width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:var(--primary);animation:p2aSpin .8s linear infinite; }
+@keyframes p2aSpin { to{transform:rotate(360deg)} }
+.custom-toast { transform:translateY(12px); opacity:0; transition:opacity .25s ease, transform .3s var(--ease-spring); }
+.custom-toast.show { opacity:1; transform:none; }
+.custom-toast.hide { opacity:0; transform:translateY(-8px); }
+@media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+</style>
+</head><body><script src="config.js"></script><style>
 #auth-overlay{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(9,9,11,.92);backdrop-filter:blur(18px)}
 .auth-modal{width:min(420px,100%);padding:42px 36px 36px;background:#18181b;border:1px solid rgba(255,255,255,.1);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.55);text-align:center}
 .auth-modal h2{margin:0;color:#fff}.auth-modal p{color:#a1a1aa}.otp-container{display:flex;justify-content:center;gap:10px;margin:28px 0}
@@ -25,14 +48,8 @@
   </div>
 </div>
 <div id='app-shell' class='hidden'>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2A Course Viewer | Modern Dark</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         /* --- CSS VARIABLES (Dark Theme Palette) --- */
         :root {
@@ -248,6 +265,9 @@
         }
 
         .card:hover .card-image img { transform: scale(1.05); }
+.card-open-btn { margin: 0 1.25rem 1.25rem; justify-content:center; width:calc(100% - 2.5rem); }
+.card-open-btn i { transition: transform .25s var(--ease-spring); }
+.card:hover .card-open-btn i { transform: translateX(3px); }
 
         .card-body { padding: 1.25rem; flex: 1; display: flex; flex-direction: column; }
         .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); }
@@ -915,8 +935,6 @@
         }
     
     </style>
-</head>
-<body>
 
     <!-- Header -->
 
@@ -1008,6 +1026,50 @@
         </div>
     </div>
 
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <div id="error-message" class="error-box hidden">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="error-text"></span>
+        </div>
+
+        <div id="course-cards-container" class="course-grid fade-in">
+            <div class="loading-state" style="grid-column:1/-1;">
+                <div class="loading-spinner"></div>
+                <p style="margin-top:1rem;">Loading available courses...</p>
+            </div>
+        </div>
+
+        <div id="course-view-container" class="hidden">
+            <div class="course-viewer">
+                <aside class="sidebar-wrapper" id="sidebar-wrapper">
+                    <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle Sidebar" type="button">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="sidebar">
+                        <div class="sidebar-header">
+                            <div class="sidebar-title" id="sidebar-course-title">Course Title</div>
+                            <div class="sidebar-subtitle" id="sidebar-course-subtitle">Subtitle</div>
+                        </div>
+                        <div class="sidebar-content" id="sidebar-lessons"></div>
+                    </div>
+                </aside>
+                <div class="content-area">
+                    <div class="content-card fade-in" id="preview-content">
+                        <div class="empty-state">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <h3>Select a Lesson</h3>
+                            <p>Choose a topic from the sidebar to begin learning.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
 </div>
 <script>
 
@@ -1087,14 +1149,14 @@
         };
 
         function openSettings() {
-            els.tokensFile.value = state.account;
-            els.bypassCache.checked = state.bypassCache;
-        
+            if (!els.settingsModal) return;
+            if (els.tokensFile) els.tokensFile.value = state.account;
+            if (els.bypassCache) els.bypassCache.checked = state.bypassCache;
             els.settingsModal.classList.remove('hidden');
         }
         
         function closeSettings() {
-            els.settingsModal.classList.add('hidden');
+            els.settingsModal?.classList.add('hidden');
         }
         
         async function applySettings() {
@@ -1145,29 +1207,34 @@
 
 
         // --- Initialization ---
+        let bootstrapped = false;
         async function awaitBootstrap() {
+            if (bootstrapped) return;
+            bootstrapped = true;
             initListeners();
             checkUrlParams();
             await loadApiAccounts();
-            loadAllCourses();
+            if (!new URLSearchParams(window.location.search).get('course')) loadAllCourses();
         }
         window.__p2aBootstrap = awaitBootstrap;
 
         function initListeners() {
             // Build Course
+            if (!els.buildBtn || !els.urlInput) return;
             els.buildBtn.addEventListener('click', handleBuildCourse);
-            els.urlInput.addEventListener('keypress', (e) => e.key === 'Enter' && handleBuildCourse());
+            els.urlInput.addEventListener('keydown', (e) => e.key === 'Enter' && handleBuildCourse());
 
             // Sidebar Toggles
-            els.sidebarToggle.addEventListener('click', toggleSidebar);
-            els.mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
-            els.sidebarBackdrop.addEventListener('click', toggleMobileSidebar);
-            els.allCoursesBtn.addEventListener('click', goToAllCourses);
-            els.settingsBtn.addEventListener('click', openSettings);
-            els.settingsClose.addEventListener('click', closeSettings);
-            els.settingsCancel.addEventListener('click', closeSettings);
-            els.settingsBackdrop.addEventListener('click', closeSettings);
-            els.settingsApply.addEventListener('click', applySettings);
+            const on = (el, event, handler) => el && el.addEventListener(event, handler);
+            on(els.sidebarToggle, 'click', toggleSidebar);
+            on(els.mobileMenuBtn, 'click', toggleMobileSidebar);
+            on(els.sidebarBackdrop, 'click', toggleMobileSidebar);
+            on(els.allCoursesBtn, 'click', goToAllCourses);
+            on(els.settingsBtn, 'click', openSettings);
+            on(els.settingsClose, 'click', closeSettings);
+            on(els.settingsCancel, 'click', closeSettings);
+            on(els.settingsBackdrop, 'click', closeSettings);
+            on(els.settingsApply, 'click', applySettings);
         }
         
         function goToAllCourses() {
@@ -1218,7 +1285,6 @@
         
         function loadPurchasedCourses() {
             return apiFetch('/api/purchased-courses')
-                .then(r => r.json())
                 .then(data => {
                     purchasedCourses = data || {};
                 })
@@ -1235,7 +1301,7 @@
                 loadPurchasedCourses()
             ])
             .then(([courseData]) => {
-                renderCourseGrid(courseData.data || courseData);
+                renderCourseGrid(courseData.data || courseData || []);
             })
             .catch(err => {
                 console.error("Grid Error:", err);
@@ -1243,7 +1309,7 @@
             });
         }
 
-        function renderCourseGrid(courses) {
+        function renderCourseGrid(courses, filtered = false) {
             if (!courses || courses.length === 0) {
                 els.courseGrid.innerHTML = `<div class="empty-state"><i class="fas fa-box-open"></i><p>No courses found.</p></div>`;
                 return;
@@ -1258,7 +1324,8 @@
         
             const html = courses.map(course => {
         
-                const price = course.price?.amount > 0 ? `৳${Number(course.price.amount).toLocaleString()}` : 'Free';
+                const rawPrice = typeof course.price === 'object' ? course.price?.amount : course.price;
+                const price = Number(rawPrice || 0) > 0 ? `৳${Number(rawPrice).toLocaleString()}` : 'Free';
         
                 const features = (course.bullet_points || []).slice(0, 2)
                     .map(f => `<li><i class="fas fa-check"></i> ${escapeHtml(f)}</li>`).join('');
@@ -1295,6 +1362,9 @@
                             </div>
                             <div class="card-price">${price}</div>
                         </div>
+                        <button class="btn btn-primary card-open-btn" type="button" onclick="event.stopPropagation(); loadCourseBySlug('${escapeJs(course.slug)}')">
+                            <i class="fas fa-play"></i> Open Course
+                        </button>
         
                     </div>
                 </div>`;
@@ -1307,7 +1377,6 @@
         function buyCourse(slug) {
         
             apiFetch(`/api/purchase?slug=${encodeURIComponent(slug)}`)
-                .then(r => r.json())
                 .then(data => {
         
                     if (data.status === "success") {
@@ -1359,7 +1428,6 @@
             params.set('bypass_cache', state.bypassCache ? '1' : '0');
             
             apiFetch(`/api/fetch?${params.toString()}`)
-            .then(r => r.json())
             .then(res => {
                 if (res.error) throw new Error(res.error);
         
@@ -1507,35 +1575,8 @@
                 params.set('account', state.account);
                 params.set('bypass_cache', state.bypassCache ? '1' : '0');
                 
-                const res = await apiFetch(`/api/fetch?${params.toString()}`);
-        
-                const text = await res.text();
-                let data;
-        
-                try {
-                    data = JSON.parse(text);
-                } catch {
-                    throw new Error("Invalid server response");
-                }
-        
-                if (
-                    res.status === 403 ||
-                    data?.detail === "Authentication credentials were not provided."
-                ) {
-                    if (!retry) throw new Error("Authentication failed.");
-        
-                    const login = await fetch('login.php');
-                    const loginRes = await login.json();
-        
-                    if (loginRes.success) {
-                        return loadContent(element, false);
-                    }
-        
-                    throw new Error("Login failed");
-                }
-        
+                const data = await apiFetch(`/api/fetch?${params.toString()}`);
                 if (data.error) throw new Error(data.error);
-        
                 renderContentPreview(data.data);
         
                 const endTime = performance.now();
@@ -1853,7 +1894,6 @@
         }
 
     </script>
-</script>
 <script>
 (function(){
  const overlay=document.getElementById('auth-overlay'), shell=document.getElementById('app-shell'), form=document.getElementById('auth-form'), err=document.getElementById('auth-error');

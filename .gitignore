@@ -1,0 +1,30 @@
+# Dependencies / local tooling
+node_modules/
+.wrangler/
+.cache/
+
+# Environment / credentials
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*token*.json
+*credential*.json
+
+# Local R2/cache exports
+cache/
+cache-export/
+r2-export/
+tmp/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Original archive / inspection material
+p2a_project.zip
+p2a_inspect/
