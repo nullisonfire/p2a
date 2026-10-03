@@ -81,19 +81,18 @@ function safeSlug(v) {
 }
 function getAccount(request, env, session) {
   const accounts=parseAccounts(env);
-  const requested = new URL(request.url).searchParams.get("account");
-  const account = requested || session?.account || Object.keys(accounts)[0];
+  const account=session?.account || Object.keys(accounts)[0];
   return account && accounts[account] ? accounts[account] : null;
 }
 function upstreamHeaders(auth, extra={}) {
   return {
-    "Accept":"*/*",
+    "Accept":"application/json",
     "Authorization":auth.authorization,
+    "X-CSRF-TOKEN":auth.csrf,
     "X-App-Key":auth.x_app_key,
-    "X-Secret-Token":auth.x_secret,
-    "Referer":"https://p2a.academy/",
-    "User-Agent":"Mozilla/5.0",
-    "Cookie":`csrftoken=${auth.csrf};token=${auth.token}`,
+    "X-Secret":auth.x_secret,
+    "Cookie":`csrftoken=${auth.csrf}; token=${auth.token}`,
+    "User-Agent":"P2A-Cloudflare-Worker/1.0",
     ...extra
   };
 }
@@ -185,6 +184,44 @@ function normalizeWrittenPayload(raw) {
     source = source.data;
   }
   return source;
+}
+
+function safeObjectName(value) {
+  const s=String(value||'').replace(/\\/g,'/').replace(/\0/g,'').replace(/^\/+/, '');
+  if(!s || s.includes('..') || !s.startsWith('pdf-zips/') || s.endsWith('/')) return null;
+  return s;
+}
+function safePdfCourseFile(value) {
+  const s=String(value||'').trim();
+  if(!s || s.includes('..') || !/^[A-Za-z0-9._ -]+\.json$/i.test(s)) return null;
+  return s;
+}
+function safePdfName(value) {
+  return String(value||'Untitled').replace(/[\\/:*?"<>|]+/g,'-').replace(/\s+/g,' ').replace(/^[- ._]+|[- ._]+$/g,'').slice(0,180) || 'Untitled';
+}
+function pdfEntryPath(pdf) {
+  const parts=(pdf.path||[]).map(safePdfName).filter(Boolean);
+  parts.push(`${safePdfName(pdf.title||pdf.slug||'document')}.pdf`);
+  return parts.join('/');
+}
+function extractPdfNodes(value, path=[], out=[]) {
+  if(!value || typeof value!=='object') return out;
+  if(!Array.isArray(value) && String(value.type||'').toLowerCase()==='pdf' && value.slug) {
+    out.push({slug:String(value.slug).split('/').pop(), title:String(value.title||value.slug), path:[...path]});
+    return out;
+  }
+  const next=(!Array.isArray(value) && value.title && (value.sections||value.contents||value.children)) ? [...path,safePdfName(value.title)] : path;
+  if(Array.isArray(value)) for(const v of value) extractPdfNodes(v,next,out);
+  else {
+    for(const key of ['sections','contents','children']) if(value[key]) extractPdfNodes(value[key],next,out);
+    for(const [key,v] of Object.entries(value)) if(!['sections','contents','children'].includes(key)) extractPdfNodes(v,next,out);
+  }
+  return out;
+}
+async function listR2Prefix(env,prefix,limit=1000) {
+  const out=[]; let cursor;
+  do { const page=await env.CACHE_BUCKET.list({prefix,limit,cursor}); out.push(...page.objects); cursor=page.truncated?page.cursor:undefined; } while(cursor);
+  return out;
 }
 
 async function requireSession(request,env) {
@@ -426,6 +463,51 @@ export default {
             upstreamJSON("https://p2a.academy/api/authenticated-courses",auth)
           ]);
           response=json({success:true,profile:p.data?.data||p.data,courses:c.data});
+
+        } else if(url.pathname==="/api/pdf/courses") {
+          const objects=await listR2Prefix(env,"courses/",500);
+          const courses=[];
+          for(const obj of objects.filter(o=>o.key.endsWith('.json'))) {
+            const file=obj.key.slice('courses/'.length);
+            const raw=await r2Json(env,obj.key); if(!raw) continue;
+            const data=unwrapUpstreamData(raw);
+            const title=String(data?.title||data?.name||data?.course?.title||data?.course?.name||file.replace(/\.json$/i,''));
+            const pdfs=extractPdfNodes(data).filter((x,i,a)=>a.findIndex(y=>y.slug===x.slug&&y.path.join('/')===x.path.join('/'))===i);
+            courses.push({file,title,pdfs:pdfs.length,zip:`pdf-zips/${safePdfName(title)}.zip`});
+          }
+          courses.sort((a,b)=>a.title.localeCompare(b.title));
+          response=json({success:true,courses});
+        } else if(url.pathname==="/api/pdf/course") {
+          const file=safePdfCourseFile(url.searchParams.get('course')); if(!file) response=json({error:"Invalid course"},400);
+          else {
+            const raw=await r2Json(env,`courses/${file}`); if(!raw) response=json({error:"Course cache not found"},404);
+            else {
+              const data=unwrapUpstreamData(raw); const title=String(data?.title||data?.name||data?.course?.title||data?.course?.name||file.replace(/\.json$/i,''));
+              const pdfs=extractPdfNodes(data).map(x=>({...x,entry:pdfEntryPath(x)}));
+              const unique=[]; const seen=new Set(); for(const x of pdfs){const k=x.slug+'|'+x.entry;if(!seen.has(k)){seen.add(k); unique.push(x);}}
+              const available=[]; const missing=[];
+              for(const x of unique){const head=await env.CACHE_BUCKET.head(`pdf/${x.slug}.pdf`); (head?available:missing).push(x);}
+              const zipName=`${safePdfName(title)}.zip`, zipKey=`pdf-zips/${zipName}`, zipHead=await env.CACHE_BUCKET.head(zipKey);
+              response=json({success:true,course:{file,title},stats:{total:unique.length,available:available.length,missing:missing.length},zip:{exists:!!zipHead,filename:zipName,key:zipKey},pdfs:unique.map(x=>({...x,available:available.some(a=>a.slug===x.slug)}))});
+            }
+          }
+        } else if(url.pathname==="/api/pdf/zip" && request.method==="POST") {
+          const course=url.searchParams.get('course'); const file=safePdfCourseFile(course); if(!file) response=json({error:"Invalid course"},400);
+          else {
+            const raw=await r2Json(env,`courses/${file}`); if(!raw) response=json({error:"Course cache not found"},404);
+            else {
+              const data=unwrapUpstreamData(raw); const title=String(data?.title||data?.name||data?.course?.title||data?.course?.name||file.replace(/\.json$/i,''));
+              const key=`pdf-zips/${safePdfName(title)}.zip`; const ct=request.headers.get('content-type')||'';
+              if(!ct.toLowerCase().includes('application/zip')) response=json({error:'Expected application/zip'},415);
+              else { await env.CACHE_BUCKET.put(key,request.body,{httpMetadata:{contentType:'application/zip',cacheControl:'private, max-age=300'}}); response=json({success:true,key,filename:key.slice('pdf-zips/'.length)}); }
+            }
+          }
+        } else if(url.pathname==="/api/zip/list") {
+          const objects=await listR2Prefix(env,"pdf-zips/",500); response=json({success:true,zips:objects.map(o=>({key:o.key,name:o.key.slice('pdf-zips/'.length),size:o.size,uploaded:o.uploaded}))});
+        } else if(url.pathname==="/api/zip/file") {
+          const key=safeObjectName(url.searchParams.get('key')); if(!key) response=json({error:'Invalid ZIP key'},400);
+          else { const obj=await env.CACHE_BUCKET.get(key); if(!obj) response=json({error:'ZIP not found'},404); else response=new Response(obj.body,{headers:{'content-type':'application/zip','content-disposition':`attachment; filename="${key.slice('pdf-zips/'.length).replace(/"/g,'') }"`,'cache-control':'private, max-age=300','x-content-type-options':'nosniff'}}); }
+        }
         } else if(url.pathname==="/api/pdf"){
           const slug=safeSlug(url.searchParams.get("slug")||"");
           if(!slug) response=json({error:"Invalid PDF slug"},400);
